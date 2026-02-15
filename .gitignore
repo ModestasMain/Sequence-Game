@@ -1,0 +1,25 @@
+# Roblox Studio
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Rojo
+rojo.exe
+
+# Logs
+*.log
+
+# Claude
+.claude/

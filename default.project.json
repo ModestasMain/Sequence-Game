@@ -1,0 +1,50 @@
+{
+  "name": "RememberTheSequence",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$path": "src/ReplicatedStorage",
+      "RemoteEvents": {
+        "$className": "Folder",
+        "SequenceShow": {
+          "$className": "RemoteEvent"
+        },
+        "PlayerInput": {
+          "$className": "RemoteEvent"
+        },
+        "GameResult": {
+          "$className": "RemoteEvent"
+        },
+        "UpdateLives": {
+          "$className": "RemoteEvent"
+        },
+        "Countdown": {
+          "$className": "RemoteEvent"
+        },
+        "TurnNotification": {
+          "$className": "RemoteEvent"
+        },
+        "ShowGameUI": {
+          "$className": "RemoteEvent"
+        },
+        "SequenceFeedback": {
+          "$className": "RemoteEvent"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/ServerScriptService"
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$path": "src/StarterGui"
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "$path": "src/Workspace"
+    }
+  }
+}
