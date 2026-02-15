@@ -14,7 +14,8 @@ local function getDefaultData()
 		Losses = 0,
 		Coins = 0,
 		GamesPlayed = 0,
-		HighestSequence = 0
+		HighestSequence = 0,
+		IQ = 100  -- Starting IQ rating (ELO-style)
 	}
 end
 
@@ -25,6 +26,10 @@ function PlayerDataManager:LoadData(player)
 	end)
 
 	if success and data then
+		-- Migrate old data: add IQ if it doesn't exist
+		if not data.IQ then
+			data.IQ = 100
+		end
 		self.PlayerData[player.UserId] = data
 	else
 		self.PlayerData[player.UserId] = getDefaultData()
@@ -57,6 +62,11 @@ function PlayerDataManager:CreateLeaderstats(player)
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
 	leaderstats.Parent = player
+
+	local iq = Instance.new("IntValue")
+	iq.Name = "IQ"
+	iq.Value = data.IQ or 100
+	iq.Parent = leaderstats
 
 	local wins = Instance.new("IntValue")
 	wins.Name = "Wins"
@@ -113,6 +123,57 @@ function PlayerDataManager:UpdateHighestSequence(player, sequenceLength)
 	end
 end
 
+-- Calculate IQ change using ELO system
+function PlayerDataManager:CalculateIQChange(winnerIQ, loserIQ, didWin)
+	local K = 32  -- Maximum IQ change per game
+
+	-- Calculate expected win probability
+	local expectedScore = 1 / (1 + 10 ^ ((loserIQ - winnerIQ) / 400))
+
+	-- Actual score: 1 for win, 0 for loss
+	local actualScore = didWin and 1 or 0
+
+	-- Calculate IQ change
+	local iqChange = math.floor(K * (actualScore - expectedScore))
+
+	return iqChange
+end
+
+-- Update IQ for both winner and loser
+function PlayerDataManager:UpdateIQ(winner, loser)
+	local winnerData = self.PlayerData[winner.UserId]
+	local loserData = self.PlayerData[loser.UserId]
+
+	if not winnerData or not loserData then return end
+
+	local winnerIQ = winnerData.IQ or 100
+	local loserIQ = loserData.IQ or 100
+
+	-- Calculate IQ changes
+	local winnerGain = self:CalculateIQChange(winnerIQ, loserIQ, true)
+	local loserLoss = self:CalculateIQChange(loserIQ, winnerIQ, false)
+
+	-- Update IQs (minimum IQ is 1)
+	winnerData.IQ = math.max(1, winnerIQ + winnerGain)
+	loserData.IQ = math.max(1, loserIQ + loserLoss)
+
+	-- Update leaderstats
+	if winner:FindFirstChild("leaderstats") and winner.leaderstats:FindFirstChild("IQ") then
+		winner.leaderstats.IQ.Value = winnerData.IQ
+	end
+
+	if loser:FindFirstChild("leaderstats") and loser.leaderstats:FindFirstChild("IQ") then
+		loser.leaderstats.IQ.Value = loserData.IQ
+	end
+
+	print(string.format("IQ Update: %s (%d → %d, %+d) defeated %s (%d → %d, %d)",
+		winner.Name, winnerIQ, winnerData.IQ, winnerGain,
+		loser.Name, loserIQ, loserData.IQ, loserLoss))
+
+	self:SaveData(winner)
+	self:SaveData(loser)
+end
+
 -- Initialize
 game.Players.PlayerAdded:Connect(function(player)
 	PlayerDataManager:LoadData(player)
@@ -122,5 +183,10 @@ game.Players.PlayerRemoving:Connect(function(player)
 	PlayerDataManager:SaveData(player)
 	PlayerDataManager.PlayerData[player.UserId] = nil
 end)
+
+-- Load data for any players already in game (in case they joined before this module loaded)
+for _, player in ipairs(game.Players:GetPlayers()) do
+	PlayerDataManager:LoadData(player)
+end
 
 return PlayerDataManager

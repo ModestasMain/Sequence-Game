@@ -5,6 +5,11 @@
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "$path": "src/ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "SequenceSounds": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      },
       "RemoteEvents": {
         "$className": "Folder",
         "SequenceShow": {
@@ -30,16 +35,24 @@
         },
         "SequenceFeedback": {
           "$className": "RemoteEvent"
+        },
+        "UpdateTimer": {
+          "$className": "RemoteEvent"
         }
       }
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
+      "$ignoreUnknownInstances": true,
       "$path": "src/ServerScriptService"
     },
     "StarterGui": {
       "$className": "StarterGui",
-      "$path": "src/StarterGui"
+      "$ignoreUnknownInstances": true,
+      "SequenceUI": {
+        "$className": "ScreenGui",
+        "$path": "src/StarterGui/SequenceUI"
+      }
     },
     "Workspace": {
       "$className": "Workspace",

@@ -1,0 +1,9 @@
+{
+  "languageMode": "strict",
+  "aliases": {
+    "ReplicatedStorage": "src/ReplicatedStorage",
+    "ServerScriptService": "src/ServerScriptService",
+    "StarterGui": "src/StarterGui",
+    "Workspace": "src/Workspace"
+  }
+}
