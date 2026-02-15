@@ -13,6 +13,8 @@ local gameResultEvent = remoteEvents:WaitForChild("GameResult")
 local updateLivesEvent = remoteEvents:WaitForChild("UpdateLives")
 local countdownEvent = remoteEvents:WaitForChild("Countdown")
 local turnNotificationEvent = remoteEvents:WaitForChild("TurnNotification")
+local showGameUIEvent = remoteEvents:WaitForChild("ShowGameUI")
+local sequenceFeedbackEvent = remoteEvents:WaitForChild("SequenceFeedback")
 
 local GameManager = {}
 GameManager.ActiveGames = {}
@@ -72,12 +74,13 @@ function GameSession:Start()
 		end
 	end
 
-	-- Show UI to BOTH players (they'll see it the whole game)
+	-- Show UI to BOTH players immediately
 	for _, player in ipairs(self.Players) do
+		showGameUIEvent:FireClient(player, true)
 		updateLivesEvent:FireClient(player, self.Lives[self.Players[1].UserId], self.Lives[self.Players[2].UserId])
 	end
 
-	-- Show countdown to both players
+	-- Show countdown to both players (only once at start)
 	task.wait(1)
 	local countdownSteps = {"Ready...", "3", "2", "1", "GO!"}
 	for _, step in ipairs(countdownSteps) do
@@ -120,12 +123,20 @@ function GameSession:StartRound()
 	turnNotificationEvent:FireClient(currentPlayer, true, currentPlayer.Name) -- It's your turn
 	turnNotificationEvent:FireClient(otherPlayer, false, currentPlayer.Name) -- It's opponent's turn
 
-	-- Show sequence to BOTH players (both can see it, but only current player can click)
+	-- Show UI to both players
+	for _, player in ipairs(self.Players) do
+		updateLivesEvent:FireClient(player, self.Lives[self.Players[1].UserId], self.Lives[self.Players[2].UserId])
+	end
+
+	-- Wait a moment to ensure turn notification is processed before showing sequence
+	task.wait(0.2)
+
+	-- Show sequence to both players (but only current player sees animation)
 	for _, player in ipairs(self.Players) do
 		sequenceShowEvent:FireClient(player, self.Sequence)
 	end
 
-	-- Wait for sequence to finish displaying
+	-- Wait for sequence to finish displaying (only for current player)
 	local displayTime = #self.Sequence * (GameConfig.SEQUENCE_DISPLAY_TIME + GameConfig.SEQUENCE_GAP_TIME) + 1
 	task.wait(displayTime)
 
@@ -156,20 +167,23 @@ function GameSession:HandleInput(player, position)
 		-- Check if sequence is complete
 		if self.CurrentInputIndex >= #self.Sequence then
 			print(player.Name .. " completed the sequence!")
+
+			-- Show green feedback to player
+			sequenceFeedbackEvent:FireClient(player, true)
+
 			self.CurrentInputIndex = 1
+
+			-- Check if we need to increment sequence (both players completed current length)
+			if self.CurrentPlayerTurn == 2 then
+				-- Player 2 just finished, increment sequence for next round
+				self:GenerateSequence()
+			end
 
 			-- Switch turns to other player
 			self.CurrentPlayerTurn = (self.CurrentPlayerTurn == 1) and 2 or 1
 
-			-- Check if we need to increment sequence (both players completed current length)
-			if self.CurrentPlayerTurn == 1 then
-				-- Just switched back to player 1, meaning player 2 just finished
-				-- Increment sequence for next round
-				self:GenerateSequence()
-			end
-
-			-- Small delay before next turn
-			task.wait(1)
+			-- Wait for feedback animation to finish before next turn
+			task.wait(1.5)
 			self:StartRound()
 		else
 			self.CurrentInputIndex = self.CurrentInputIndex + 1
@@ -182,6 +196,9 @@ function GameSession:HandleInput(player, position)
 end
 
 function GameSession:HandleWrongInput(player)
+	-- Show red feedback to player
+	sequenceFeedbackEvent:FireClient(player, false)
+
 	-- Deduct a life
 	self.Lives[player.UserId] = self.Lives[player.UserId] - 1
 
@@ -194,6 +211,7 @@ function GameSession:HandleWrongInput(player)
 
 	-- Check if player is out of lives
 	if self.Lives[player.UserId] <= 0 then
+		task.wait(1.5) -- Wait for feedback animation
 		self:EndGame(player)
 	else
 		-- Switch turns to other player (they get a chance with the same sequence)
@@ -201,7 +219,7 @@ function GameSession:HandleWrongInput(player)
 
 		-- Reset for next turn (same sequence length)
 		self.CurrentInputIndex = 1
-		task.wait(2)
+		task.wait(1.5) -- Wait for feedback animation
 		self:StartRound()
 	end
 end
@@ -242,6 +260,11 @@ function GameSession:EndGame(loser)
 end
 
 function GameSession:Cleanup()
+	-- Hide UI for both players
+	for _, player in ipairs(self.Players) do
+		showGameUIEvent:FireClient(player, false)
+	end
+
 	-- Unlock players
 	for _, player in ipairs(self.Players) do
 		if player.Character then
