@@ -54,27 +54,23 @@ function GameSession:Start()
 
 	print("Game session starting...")
 
-	-- Teleport players to game arena
-	local arena = game.Workspace:WaitForChild("GameArena")
-	local spawn = arena:FindFirstChild("SpawnLocation")
+	-- Keep players on their platform pads and make them face each other
+	if self.Platform and self.Platform.LeftPart and self.Platform.RightPart then
+		local leftPos = self.Platform.LeftPart.Position
+		local rightPos = self.Platform.RightPart.Position
 
-	if spawn then
-		-- Calculate unique arena position for this game based on platform
-		-- Extract platform number from name (Platform1 -> 1, Platform2 -> 2, etc.)
-		local platformNumber = 1
-		if self.Platform and self.Platform.Model then
-			local platformName = self.Platform.Model.Name
-			platformNumber = tonumber(string.match(platformName, "%d+")) or 1
-		end
-
-		-- Space out games: each game gets its own area 50 studs apart
-		local gameAreaOffset = Vector3.new(0, 0, (platformNumber - 1) * 50)
-
+		-- Position players on their pads facing each other
 		for i, player in ipairs(self.Players) do
 			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				-- Space players apart within their game area (10 studs between them)
-				local playerOffset = Vector3.new((i - 1.5) * 10, 0, 0)
-				player.Character.HumanoidRootPart.CFrame = spawn.CFrame + gameAreaOffset + playerOffset
+				local hrp = player.Character.HumanoidRootPart
+
+				if i == 1 then
+					-- Player 1 on left pad, facing right
+					hrp.CFrame = CFrame.new(leftPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(-90), 0)
+				else
+					-- Player 2 on right pad, facing left
+					hrp.CFrame = CFrame.new(rightPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(90), 0)
+				end
 			end
 		end
 	end
