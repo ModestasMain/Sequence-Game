@@ -54,6 +54,9 @@
         "$path": "src/StarterGui/SequenceUI"
       }
     },
+    "StarterPlayer": {
+      "$path": "src/StarterPlayer"
+    },
     "Workspace": {
       "$className": "Workspace",
       "$ignoreUnknownInstances": true,

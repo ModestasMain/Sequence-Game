@@ -45,6 +45,11 @@ function GameSession.new(player1, player2, platform)
 	return self
 end
 
+-- Helper to safely call LivePreview methods (no-op if not available)
+function GameSession:LP()
+	return self.Platform and self.Platform.LivePreview
+end
+
 function GameSession:Start()
 	if self.Started then
 		print("WARNING: Start() called twice on same session. Ignoring.")
@@ -162,6 +167,12 @@ function GameSession:GenerateSequence()
 	print("New sequence length: " .. self.SequenceLength)
 	print("Full sequence: " .. table.concat(self.Sequence, ", "))
 	print("Added position: " .. newPosition)
+
+	-- Update live preview sequence length
+	local lp = self:LP()
+	if lp then
+		lp:UpdateSequenceLength(self.SequenceLength)
+	end
 end
 
 function GameSession:StopTimer()
@@ -244,6 +255,14 @@ function GameSession:StartRound()
 	turnNotificationEvent:FireClient(currentPlayer, true, currentPlayer.Name) -- It's your turn
 	turnNotificationEvent:FireClient(otherPlayer, false, currentPlayer.Name) -- It's opponent's turn
 
+	-- Update live preview: who's turn it is
+	local lp = self:LP()
+	if lp then
+		lp:UpdateTurnInfo(self.Players[1].Name, self.Players[2].Name, currentPlayer.Name)
+		lp:UpdateStatus(currentPlayer.Name .. " is watching the sequence...", Color3.fromRGB(160, 160, 160))
+		lp:ResetAllSquares()
+	end
+
 	-- Show UI to both players
 	for _, player in ipairs(self.Players) do
 		updateLivesEvent:FireClient(player, self.Lives[self.Players[1].UserId], self.Lives[self.Players[2].UserId])
@@ -259,6 +278,22 @@ function GameSession:StartRound()
 	-- Show sequence to both players (but only current player sees animation)
 	for _, player in ipairs(self.Players) do
 		sequenceShowEvent:FireClient(player, self.Sequence)
+	end
+
+	-- Mirror sequence animation on live preview (runs concurrently)
+	if lp then
+		task.spawn(function()
+			for _, position in ipairs(self.Sequence) do
+				if not self.Active then break end
+				task.wait(GameConfig.SEQUENCE_GAP_TIME)
+				lp:HighlightSquare(position, GameConfig.SQUARE_HIGHLIGHT_COLOR)
+				task.wait(GameConfig.SEQUENCE_DISPLAY_TIME)
+				lp:ResetSquare(position)
+			end
+			if self.Active then
+				lp:UpdateStatus(currentPlayer.Name .. " is entering sequence...", Color3.fromRGB(255, 220, 80))
+			end
+		end)
 	end
 
 	-- Wait for sequence to finish displaying (only for current player)
@@ -294,6 +329,12 @@ function GameSession:HandleInput(player, position)
 	print("Current index: " .. self.CurrentInputIndex .. " / " .. #self.Sequence)
 	print("Full sequence: " .. table.concat(self.Sequence, ", "))
 
+	-- Mirror every click on the live preview
+	local lp = self:LP()
+	if lp then
+		lp:ShowClickFlash(position)
+	end
+
 	if position == expectedPosition then
 		-- Correct input
 		print("✓ CORRECT!")
@@ -306,8 +347,11 @@ function GameSession:HandleInput(player, position)
 			-- Stop the timer
 			self:StopTimer()
 
-			-- Show green feedback to player
+			-- Show green feedback to player and on live preview
 			sequenceFeedbackEvent:FireClient(player, true)
+			if lp then
+				lp:ShowFeedback(true)
+			end
 
 			self.CurrentInputIndex = 1
 
@@ -339,17 +383,24 @@ function GameSession:HandleWrongInput(player)
 	-- Stop the timer
 	self:StopTimer()
 
-	-- Show red feedback to player
+	-- Show red feedback to player and on live preview
 	sequenceFeedbackEvent:FireClient(player, false)
+	local lp = self:LP()
+	if lp then
+		lp:ShowFeedback(false)
+	end
 
 	-- Deduct a life
 	self.Lives[player.UserId] = self.Lives[player.UserId] - 1
 
 	print(player.Name .. " lost a life! Lives remaining: " .. self.Lives[player.UserId])
 
-	-- Update lives for both players
+	-- Update lives for both players and on live preview
 	for _, p in ipairs(self.Players) do
 		updateLivesEvent:FireClient(p, self.Lives[self.Players[1].UserId], self.Lives[self.Players[2].UserId])
+	end
+	if lp then
+		lp:UpdateLives(self.Lives[self.Players[1].UserId], self.Lives[self.Players[2].UserId])
 	end
 
 	-- Check if player is out of lives
@@ -399,6 +450,12 @@ function GameSession:EndGame(loser)
 		PlayerDataManager:UpdateIQ(winner, loser)
 	end
 
+	-- Update live preview to show game over
+	local lp = self:LP()
+	if lp then
+		lp:UpdateStatus("Game Over! " .. (winner and winner.Name or "?") .. " wins!", Color3.fromRGB(255, 220, 80))
+	end
+
 	-- Notify players
 	for _, player in ipairs(self.Players) do
 		local won = (player == winner)
@@ -445,7 +502,7 @@ function GameSession:Cleanup()
 		end
 	end
 
-	-- Reset platform
+	-- Reset platform (also calls LivePreview:Hide())
 	if self.Platform then
 		self.Platform:Reset()
 	end

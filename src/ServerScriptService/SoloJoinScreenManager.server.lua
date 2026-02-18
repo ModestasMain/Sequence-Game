@@ -1,6 +1,9 @@
 -- SoloJoinScreenManager.server.lua
 -- Handles Press E to Join for solo platforms
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
+
 local SoloJoinScreenManager = {}
 
 function SoloJoinScreenManager:SetupPlatform(platformModel)
@@ -18,16 +21,62 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	local gameInProgress = false
 	local debounce = {}
 
-	-- UI Elements
-	local bgFrame = Instance.new("Frame")
-	bgFrame.Size = UDim2.new(1, 0, 1, 0)
-	bgFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-	bgFrame.BorderSizePixel = 0
-	bgFrame.Parent = gui
+	-- === FLOATING BILLBOARD (above platform) ===
+	local joinScreenPart = joinScreen
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "PlatformBillboard"
+	billboard.Size = UDim2.new(0, 320, 0, 100)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 300
+	billboard.Adornee = joinScreenPart
+	billboard.Parent = joinScreenPart
+
+	local billboardModeLabel = Instance.new("TextLabel")
+	billboardModeLabel.Size = UDim2.new(1, 0, 0.42, 0)
+	billboardModeLabel.Position = UDim2.new(0, 0, 0, 0)
+	billboardModeLabel.BackgroundTransparency = 1
+	billboardModeLabel.Text = "SOLO"
+	billboardModeLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
+	billboardModeLabel.TextSize = 18
+	billboardModeLabel.Font = Enum.Font.GothamBold
+	billboardModeLabel.TextStrokeTransparency = 0
+	billboardModeLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	billboardModeLabel.Parent = billboard
+
+	local billboardCountLabel = Instance.new("TextLabel")
+	billboardCountLabel.Size = UDim2.new(1, 0, 0.58, 0)
+	billboardCountLabel.Position = UDim2.new(0, 0, 0.42, 0)
+	billboardCountLabel.BackgroundTransparency = 1
+	billboardCountLabel.Text = "Available"
+	billboardCountLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	billboardCountLabel.TextSize = 14
+	billboardCountLabel.Font = Enum.Font.GothamBold
+	billboardCountLabel.TextStrokeTransparency = 0
+	billboardCountLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	billboardCountLabel.Parent = billboard
+
+	local function updateBillboard()
+		if gameInProgress then
+			billboardCountLabel.Text = "In Progress"
+			billboardCountLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		else
+			billboardCountLabel.Text = "Available"
+			billboardCountLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
+	end
+
+	-- === LOBBY FRAME ===
+	local lobbyFrame = Instance.new("Frame")
+	lobbyFrame.Name = "LobbyFrame"
+	lobbyFrame.Size = UDim2.new(1, 0, 1, 0)
+	lobbyFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	lobbyFrame.BorderSizePixel = 0
+	lobbyFrame.Parent = gui
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = bgFrame
+	corner.Parent = lobbyFrame
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Size = UDim2.new(1, 0, 0, 80)
@@ -38,7 +87,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	titleLabel.TextSize = 40
 	titleLabel.Font = Enum.Font.GothamBold
 	titleLabel.TextStrokeTransparency = 0
-	titleLabel.Parent = bgFrame
+	titleLabel.Parent = lobbyFrame
 
 	local subtitleLabel = Instance.new("TextLabel")
 	subtitleLabel.Size = UDim2.new(1, 0, 0, 40)
@@ -48,7 +97,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	subtitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	subtitleLabel.TextSize = 24
 	subtitleLabel.Font = Enum.Font.Gotham
-	subtitleLabel.Parent = bgFrame
+	subtitleLabel.Parent = lobbyFrame
 
 	local infoLabel = Instance.new("TextLabel")
 	infoLabel.Size = UDim2.new(1, -40, 0, 80)
@@ -59,7 +108,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	infoLabel.TextSize = 22
 	infoLabel.Font = Enum.Font.Gotham
 	infoLabel.TextYAlignment = Enum.TextYAlignment.Top
-	infoLabel.Parent = bgFrame
+	infoLabel.Parent = lobbyFrame
 
 	local statusLabel = Instance.new("TextLabel")
 	statusLabel.Size = UDim2.new(1, 0, 0, 40)
@@ -70,12 +119,200 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	statusLabel.TextSize = 28
 	statusLabel.Font = Enum.Font.GothamBold
 	statusLabel.TextStrokeTransparency = 0.5
-	statusLabel.Parent = bgFrame
+	statusLabel.Parent = lobbyFrame
 
+	-- === LIVE PREVIEW FRAME ===
+	local previewFrame = Instance.new("Frame")
+	previewFrame.Name = "PreviewFrame"
+	previewFrame.Size = UDim2.new(1, 0, 1, 0)
+	previewFrame.BackgroundColor3 = Color3.fromRGB(20, 18, 10)
+	previewFrame.BorderSizePixel = 0
+	previewFrame.Visible = false
+	previewFrame.Parent = gui
+
+	local previewCorner = Instance.new("UICorner")
+	previewCorner.CornerRadius = UDim.new(0, 12)
+	previewCorner.Parent = previewFrame
+
+	-- LIVE badge
+	local liveBadge = Instance.new("Frame")
+	liveBadge.Size = UDim2.new(0, 90, 0, 30)
+	liveBadge.Position = UDim2.new(0, 10, 0, 10)
+	liveBadge.BackgroundColor3 = Color3.fromRGB(210, 40, 40)
+	liveBadge.BorderSizePixel = 0
+	liveBadge.Parent = previewFrame
+	local liveBadgeCorner = Instance.new("UICorner")
+	liveBadgeCorner.CornerRadius = UDim.new(0, 6)
+	liveBadgeCorner.Parent = liveBadge
+	local liveBadgeLabel = Instance.new("TextLabel")
+	liveBadgeLabel.Size = UDim2.new(1, 0, 1, 0)
+	liveBadgeLabel.BackgroundTransparency = 1
+	liveBadgeLabel.Text = "● LIVE"
+	liveBadgeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	liveBadgeLabel.TextSize = 16
+	liveBadgeLabel.Font = Enum.Font.GothamBold
+	liveBadgeLabel.Parent = liveBadge
+
+	-- Player name
+	local previewInfoLabel = Instance.new("TextLabel")
+	previewInfoLabel.Name = "InfoLabel"
+	previewInfoLabel.Size = UDim2.new(1, -10, 0, 36)
+	previewInfoLabel.Position = UDim2.new(0, 5, 0, 46)
+	previewInfoLabel.BackgroundTransparency = 1
+	previewInfoLabel.Text = "Solo Run In Progress"
+	previewInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+	previewInfoLabel.TextSize = 20
+	previewInfoLabel.Font = Enum.Font.GothamBold
+	previewInfoLabel.Parent = previewFrame
+
+	-- Lives display
+	local previewLivesLabel = Instance.new("TextLabel")
+	previewLivesLabel.Name = "LivesLabel"
+	previewLivesLabel.Size = UDim2.new(1, -10, 0, 26)
+	previewLivesLabel.Position = UDim2.new(0, 5, 0, 84)
+	previewLivesLabel.BackgroundTransparency = 1
+	previewLivesLabel.Text = "Lives: ♥♥♥"
+	previewLivesLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+	previewLivesLabel.TextSize = 18
+	previewLivesLabel.Font = Enum.Font.Gotham
+	previewLivesLabel.Parent = previewFrame
+
+	-- Sequence length display
+	local previewSeqLabel = Instance.new("TextLabel")
+	previewSeqLabel.Name = "SeqLabel"
+	previewSeqLabel.Size = UDim2.new(1, -10, 0, 24)
+	previewSeqLabel.Position = UDim2.new(0, 5, 0, 112)
+	previewSeqLabel.BackgroundTransparency = 1
+	previewSeqLabel.Text = "Sequence: 1"
+	previewSeqLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+	previewSeqLabel.TextSize = 16
+	previewSeqLabel.Font = Enum.Font.Gotham
+	previewSeqLabel.Parent = previewFrame
+
+	-- 3x3 grid
+	local squareSize = 110
+	local squareGap = 8
+	local gridTotal = GameConfig.GRID_SIZE * squareSize + (GameConfig.GRID_SIZE - 1) * squareGap
+
+	local gridFrame = Instance.new("Frame")
+	gridFrame.Name = "GridFrame"
+	gridFrame.Size = UDim2.new(0, gridTotal, 0, gridTotal)
+	gridFrame.Position = UDim2.new(0.5, -gridTotal / 2, 0, 142)
+	gridFrame.BackgroundTransparency = 1
+	gridFrame.Parent = previewFrame
+
+	local previewSquares = {}
+	for row = 1, GameConfig.GRID_SIZE do
+		for col = 1, GameConfig.GRID_SIZE do
+			local pos = (row - 1) * GameConfig.GRID_SIZE + col
+			local sq = Instance.new("Frame")
+			sq.Name = "Square" .. pos
+			sq.Size = UDim2.new(0, squareSize, 0, squareSize)
+			sq.Position = UDim2.new(0, (col - 1) * (squareSize + squareGap), 0, (row - 1) * (squareSize + squareGap))
+			sq.BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+			sq.BorderSizePixel = 0
+			sq.Parent = gridFrame
+			local sqCorner = Instance.new("UICorner")
+			sqCorner.CornerRadius = UDim.new(0, 8)
+			sqCorner.Parent = sq
+			previewSquares[pos] = sq
+		end
+	end
+
+	-- Bottom status
+	local previewStatusLabel = Instance.new("TextLabel")
+	previewStatusLabel.Name = "StatusLabel"
+	previewStatusLabel.Size = UDim2.new(1, 0, 0, 36)
+	previewStatusLabel.Position = UDim2.new(0, 0, 1, -48)
+	previewStatusLabel.BackgroundTransparency = 1
+	previewStatusLabel.Text = "Watch the solo run live!"
+	previewStatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+	previewStatusLabel.TextSize = 18
+	previewStatusLabel.Font = Enum.Font.Gotham
+	previewStatusLabel.Parent = previewFrame
+
+	-- === LivePreview API (called by SoloGameManager) ===
+	local LivePreview = {}
+
+	function LivePreview:Show(playerName)
+		lobbyFrame.Visible = false
+		previewFrame.Visible = true
+		previewInfoLabel.Text = playerName .. " — Solo Run"
+		previewLivesLabel.Text = "Lives: " .. string.rep("♥", GameConfig.STARTING_LIVES)
+		previewSeqLabel.Text = "Sequence: 1"
+		previewStatusLabel.Text = "Solo run starting..."
+		previewStatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+		self:ResetAllSquares()
+	end
+
+	function LivePreview:Hide()
+		previewFrame.Visible = false
+		lobbyFrame.Visible = true
+		self:ResetAllSquares()
+	end
+
+	function LivePreview:HighlightSquare(position, color)
+		if previewSquares[position] then
+			previewSquares[position].BackgroundColor3 = color
+		end
+	end
+
+	function LivePreview:ResetSquare(position)
+		if previewSquares[position] then
+			previewSquares[position].BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+		end
+	end
+
+	function LivePreview:ResetAllSquares()
+		for _, sq in pairs(previewSquares) do
+			sq.BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+		end
+	end
+
+	function LivePreview:ShowClickFlash(position)
+		if previewSquares[position] then
+			previewSquares[position].BackgroundColor3 = GameConfig.SQUARE_ACTIVE_COLOR
+			task.delay(0.12, function()
+				if previewSquares[position] then
+					previewSquares[position].BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+				end
+			end)
+		end
+	end
+
+	function LivePreview:ShowFeedback(isCorrect)
+		local color = isCorrect and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+		for _, sq in pairs(previewSquares) do
+			sq.BackgroundColor3 = color
+		end
+		task.delay(1, function()
+			self:ResetAllSquares()
+		end)
+	end
+
+	function LivePreview:UpdateLives(lives)
+		local function hearts(n, max)
+			return string.rep("♥", math.max(0, n)) .. string.rep("♡", math.max(0, max - n))
+		end
+		previewLivesLabel.Text = "Lives: " .. hearts(lives, GameConfig.STARTING_LIVES)
+	end
+
+	function LivePreview:UpdateSequenceLength(len)
+		previewSeqLabel.Text = "Sequence: " .. len
+	end
+
+	function LivePreview:UpdateStatus(text, color)
+		previewStatusLabel.Text = text
+		previewStatusLabel.TextColor3 = color or Color3.fromRGB(160, 160, 160)
+	end
+
+	-- ===========================
+	-- Lobby logic
+	-- ===========================
 	local function updateDisplay()
+		updateBillboard()
 		if gameInProgress then
-			statusLabel.Text = "Game In Progress..."
-			statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+			return
 		else
 			statusLabel.Text = "Press E to Play"
 			statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -99,17 +336,23 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 
 		print("[SoloJoin] Starting solo game for " .. player.Name)
 
+		-- Switch to live preview immediately
+		LivePreview:Show(player.Name)
+
 		local SoloGameManager = require(game.ServerScriptService:WaitForChild("SoloGameManager"))
 
 		local platformObj = {
 			Model = platformModel,
 			LeftPart = platformModel:FindFirstChild("Left"),
-			RightPart = platformModel:FindFirstChild("Right")
+			RightPart = platformModel:FindFirstChild("Right"),
+			LivePreview = LivePreview,
 		}
 
 		function platformObj:Reset()
 			gameInProgress = false
 			joinPrompt.Enabled = true
+			LivePreview:Hide()
+			updateBillboard()
 			updateDisplay()
 			print("[SoloJoin] " .. platformModel.Name .. " reset")
 		end

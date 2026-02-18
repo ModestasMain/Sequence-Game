@@ -37,11 +37,21 @@ function SoloSession.new(player, platform)
 	return self
 end
 
+-- Helper to safely access LivePreview
+function SoloSession:LP()
+	return self.Platform and self.Platform.LivePreview
+end
+
 function SoloSession:GenerateSequence()
 	local newPosition = math.random(1, GameConfig.GRID_SIZE * GameConfig.GRID_SIZE)
 	table.insert(self.Sequence, newPosition)
 	self.SequenceLength = #self.Sequence
 	print("[Solo] Sequence length: " .. self.SequenceLength .. " for " .. self.Player.Name)
+
+	local lp = self:LP()
+	if lp then
+		lp:UpdateSequenceLength(self.SequenceLength)
+	end
 end
 
 function SoloSession:StartTimer()
@@ -103,6 +113,12 @@ function SoloSession:Start()
 	showGameUIEvent:FireClient(self.Player, true)
 	updateLivesEvent:FireClient(self.Player, self.Lives, 0)
 
+	-- Update preview lives on start
+	local lp = self:LP()
+	if lp then
+		lp:UpdateLives(self.Lives)
+	end
+
 	-- Countdown
 	for i = 3, 1, -1 do
 		countdownEvent:FireClient(self.Player, tostring(i))
@@ -124,12 +140,35 @@ function SoloSession:NextRound()
 	self:GenerateSequence()
 	self.CurrentInputIndex = 1
 
-	-- Update lives display (lives vs 0 for solo)
+	-- Update lives display
 	updateLivesEvent:FireClient(self.Player, self.Lives, 0)
+
+	local lp = self:LP()
+	if lp then
+		lp:UpdateLives(self.Lives)
+		lp:ResetAllSquares()
+		lp:UpdateStatus(self.Player.Name .. " is watching the sequence...", Color3.fromRGB(160, 160, 160))
+	end
 
 	-- Send sequence
 	turnNotificationEvent:FireClient(self.Player, true, self.Player.Name)
 	sequenceShowEvent:FireClient(self.Player, self.Sequence)
+
+	-- Mirror sequence on live preview
+	if lp then
+		task.spawn(function()
+			for _, position in ipairs(self.Sequence) do
+				if not self.Active then break end
+				task.wait(GameConfig.SEQUENCE_GAP_TIME)
+				lp:HighlightSquare(position, GameConfig.SQUARE_HIGHLIGHT_COLOR)
+				task.wait(GameConfig.SEQUENCE_DISPLAY_TIME)
+				lp:ResetSquare(position)
+			end
+			if self.Active then
+				lp:UpdateStatus(self.Player.Name .. " is entering sequence...", Color3.fromRGB(255, 220, 80))
+			end
+		end)
+	end
 
 	-- Start timer after sequence display time
 	local displayTime = #self.Sequence * (GameConfig.SEQUENCE_DISPLAY_TIME + GameConfig.SEQUENCE_GAP_TIME) + 1
@@ -145,6 +184,12 @@ function SoloSession:HandleInput(position)
 
 	local expectedPosition = self.Sequence[self.CurrentInputIndex]
 
+	-- Mirror click on live preview regardless of correctness
+	local lp = self:LP()
+	if lp then
+		lp:ShowClickFlash(position)
+	end
+
 	if position == expectedPosition then
 		self.CurrentInputIndex = self.CurrentInputIndex + 1
 
@@ -153,6 +198,9 @@ function SoloSession:HandleInput(position)
 			self:StopTimer()
 			print("[Solo] Correct sequence! Length: " .. self.SequenceLength .. " by " .. self.Player.Name)
 			sequenceFeedbackEvent:FireClient(self.Player, true)
+			if lp then
+				lp:ShowFeedback(true)
+			end
 			task.wait(1.5)
 			self:NextRound()
 		end
@@ -169,6 +217,12 @@ function SoloSession:HandleWrongInput()
 	sequenceFeedbackEvent:FireClient(self.Player, false)
 	updateLivesEvent:FireClient(self.Player, self.Lives, 0)
 
+	local lp = self:LP()
+	if lp then
+		lp:ShowFeedback(false)
+		lp:UpdateLives(self.Lives)
+	end
+
 	if self.Lives <= 0 then
 		-- Game over
 		task.wait(1.5)
@@ -177,8 +231,30 @@ function SoloSession:HandleWrongInput()
 		-- Retry same sequence
 		task.wait(1.5)
 		self.CurrentInputIndex = 1
+
+		if lp then
+			lp:ResetAllSquares()
+			lp:UpdateStatus(self.Player.Name .. " retrying sequence...", Color3.fromRGB(255, 160, 80))
+		end
+
 		turnNotificationEvent:FireClient(self.Player, true, self.Player.Name)
 		sequenceShowEvent:FireClient(self.Player, self.Sequence)
+
+		-- Mirror retry sequence on live preview
+		if lp then
+			task.spawn(function()
+				for _, position in ipairs(self.Sequence) do
+					if not self.Active then break end
+					task.wait(GameConfig.SEQUENCE_GAP_TIME)
+					lp:HighlightSquare(position, GameConfig.SQUARE_HIGHLIGHT_COLOR)
+					task.wait(GameConfig.SEQUENCE_DISPLAY_TIME)
+					lp:ResetSquare(position)
+				end
+				if self.Active then
+					lp:UpdateStatus(self.Player.Name .. " is entering sequence...", Color3.fromRGB(255, 220, 80))
+				end
+			end)
+		end
 
 		local displayTime = #self.Sequence * (GameConfig.SEQUENCE_DISPLAY_TIME + GameConfig.SEQUENCE_GAP_TIME) + 1
 		task.delay(displayTime, function()
@@ -194,6 +270,11 @@ function SoloSession:EndGame()
 	self:StopTimer()
 
 	print("[Solo] Game over for " .. self.Player.Name .. " - Reached sequence: " .. self.SequenceLength)
+
+	local lp = self:LP()
+	if lp then
+		lp:UpdateStatus("Game Over! Reached sequence " .. self.SequenceLength, Color3.fromRGB(255, 220, 80))
+	end
 
 	-- Show result
 	gameResultEvent:FireClient(self.Player, false, self.SequenceLength)
@@ -217,7 +298,7 @@ function SoloSession:EndGame()
 		end
 	end
 
-	-- Reset platform
+	-- Reset platform (also calls LivePreview:Hide())
 	if self.Platform then
 		self.Platform:Reset()
 	end
