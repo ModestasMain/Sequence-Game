@@ -32,7 +32,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	local joinScreenPart = joinScreen -- the Part itself
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "PlatformBillboard"
-	billboard.Size = UDim2.new(0, 160, 0, 50)
+	billboard.Size = UDim2.new(4, 0, 1.5, 0)   -- studs, not pixels — scales with world
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = 300
@@ -45,7 +45,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	billboardModeLabel.BackgroundTransparency = 1
 	billboardModeLabel.Text = "1v1"
 	billboardModeLabel.TextColor3 = Color3.fromRGB(100, 210, 255)
-	billboardModeLabel.TextSize = 18
+	billboardModeLabel.TextScaled = true
 	billboardModeLabel.Font = Enum.Font.GothamBold
 	billboardModeLabel.TextStrokeTransparency = 0
 	billboardModeLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -57,7 +57,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	billboardCountLabel.BackgroundTransparency = 1
 	billboardCountLabel.Text = "0/2 Players"
 	billboardCountLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	billboardCountLabel.TextSize = 14
+	billboardCountLabel.TextScaled = true
 	billboardCountLabel.Font = Enum.Font.GothamBold
 	billboardCountLabel.TextStrokeTransparency = 0
 	billboardCountLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
