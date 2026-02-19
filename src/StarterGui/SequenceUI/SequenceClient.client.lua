@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players           = game:GetService("Players")
 local player            = Players.LocalPlayer
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local GameConfig  = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local ThemeConfig = require(ReplicatedStorage:WaitForChild("ThemeConfig"))
 
 -- Remote Events
 local remoteEvents          = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -18,6 +19,10 @@ local turnNotificationEvent = remoteEvents:WaitForChild("TurnNotification")
 local showGameUIEvent       = remoteEvents:WaitForChild("ShowGameUI")
 local sequenceFeedbackEvent = remoteEvents:WaitForChild("SequenceFeedback")
 local updateTimerEvent      = remoteEvents:WaitForChild("UpdateTimer")
+local themeDataEvent        = remoteEvents:WaitForChild("ThemeData")
+
+-- Theme state
+local currentTheme = ThemeConfig.Themes["Default"]
 
 -- ── Sounds ──────────────────────────────────────────────────────────────────
 local sequenceSounds = ReplicatedStorage:WaitForChild("SequenceSounds")
@@ -40,35 +45,28 @@ screenGui.ResetOnSpawn = false
 
 -- ══════════════════════════════════════════════════════════════════════════════
 --  MAIN PANEL
---  • Height-driven: always 78 % of the viewport height
---  • UIAspectRatioConstraint keeps width = 0.78 × height on every screen
---    → portrait panel that fits mobile landscape AND desktop perfectly
 -- ══════════════════════════════════════════════════════════════════════════════
 local mainFrame = Instance.new("Frame")
 mainFrame.Name                = "MainFrame"
 mainFrame.AnchorPoint         = Vector2.new(0.5, 0.5)
 mainFrame.Position            = UDim2.new(0.5, 0, 0.5, 0)
-mainFrame.Size                = UDim2.new(0, 0, 0.78, 0)   -- width filled by constraint
-mainFrame.BackgroundColor3    = Color3.fromRGB(30, 30, 30)
+mainFrame.Size                = UDim2.new(0, 0, 0.78, 0)
+mainFrame.BackgroundColor3    = currentTheme.Colors.Panel
 mainFrame.BorderSizePixel     = 0
 mainFrame.Visible             = false
 mainFrame.Parent              = screenGui
 
 local frameAspect = Instance.new("UIAspectRatioConstraint")
-frameAspect.AspectRatio  = 0.78          -- width = 0.78 × height
+frameAspect.AspectRatio  = 0.78
 frameAspect.AspectType   = Enum.AspectType.ScaleWithParentSize
 frameAspect.DominantAxis = Enum.DominantAxis.Height
 frameAspect.Parent = mainFrame
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0.025, 0)  -- scale-based rounding
+corner.CornerRadius = UDim.new(0.025, 0)
 corner.Parent = mainFrame
 
--- ── Top row: Lives (left) + Timer (right) ─────────────────────────────────
---   All positions / sizes are Scale-based relative to mainFrame.
-
-local HEART_ALIVE = Color3.fromRGB(255, 68, 102)
-local HEART_DEAD  = Color3.fromRGB(80, 80, 80)
+-- ── Top row: Lives + Timer ────────────────────────────────────────────────
 
 local function makeHeart(posX)
 	local h = Instance.new("TextLabel")
@@ -76,7 +74,7 @@ local function makeHeart(posX)
 	h.Position              = UDim2.new(posX, 0, 0.02, 0)
 	h.BackgroundTransparency = 1
 	h.Text                  = "♥"
-	h.TextColor3            = HEART_ALIVE
+	h.TextColor3            = currentTheme.Colors.HeartAlive
 	h.TextScaled            = true
 	h.Font                  = Enum.Font.GothamBold
 	h.TextXAlignment        = Enum.TextXAlignment.Center
@@ -84,7 +82,6 @@ local function makeHeart(posX)
 	return h
 end
 
--- p1 hearts: X = 0.04, 0.115, 0.19
 local p1HeartLabels = {
 	makeHeart(0.04),
 	makeHeart(0.115),
@@ -104,7 +101,6 @@ vsLabel.TextXAlignment         = Enum.TextXAlignment.Center
 vsLabel.Visible                = false
 vsLabel.Parent                 = mainFrame
 
--- p2 hearts: X = 0.33, 0.405, 0.48  (multiplayer only, hidden until needed)
 local p2HeartLabels = {
 	makeHeart(0.33),
 	makeHeart(0.405),
@@ -127,24 +123,21 @@ timerDisplay.Visible              = false
 timerDisplay.Parent               = mainFrame
 
 -- ── 3×3 Grid ────────────────────────────────────────────────────────────────
---   GridFrame is width-driven (90 % of panel width) and kept SQUARE by
---   UIAspectRatioConstraint.  UIGridLayout fills it with 9 equal buttons.
 
 local gridFrame = Instance.new("Frame")
 gridFrame.Name                 = "GridFrame"
 gridFrame.AnchorPoint          = Vector2.new(0.5, 0)
 gridFrame.Position             = UDim2.new(0.5, 0, 0.12, 0)
-gridFrame.Size                 = UDim2.new(0.90, 0, 0, 0)   -- height = width via constraint
+gridFrame.Size                 = UDim2.new(0.90, 0, 0, 0)
 gridFrame.BackgroundTransparency = 1
 gridFrame.Parent               = mainFrame
 
 local gridAspect = Instance.new("UIAspectRatioConstraint")
-gridAspect.AspectRatio  = 1                          -- always square
+gridAspect.AspectRatio  = 1
 gridAspect.AspectType   = Enum.AspectType.ScaleWithParentSize
 gridAspect.DominantAxis = Enum.DominantAxis.Width
 gridAspect.Parent = gridFrame
 
---   3 cells × 31.4 % + 2 gaps × 2.9 % = 100 % — perfect fit, no overflow.
 local gridLayout = Instance.new("UIGridLayout")
 gridLayout.CellSize            = UDim2.new(0.314, 0, 0.314, 0)
 gridLayout.CellPadding         = UDim2.new(0.029, 0, 0.029, 0)
@@ -153,7 +146,6 @@ gridLayout.VerticalAlignment   = Enum.VerticalAlignment.Center
 gridLayout.SortOrder           = Enum.SortOrder.LayoutOrder
 gridLayout.Parent = gridFrame
 
--- Buttons — UIGridLayout controls their size; we only set color / rounding.
 local gridButtons = {}
 
 for row = 1, GameConfig.GRID_SIZE do
@@ -162,7 +154,7 @@ for row = 1, GameConfig.GRID_SIZE do
 
 		local btn = Instance.new("TextButton")
 		btn.Name             = "Square" .. pos
-		btn.BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+		btn.BackgroundColor3 = currentTheme.Colors.Square
 		btn.BorderSizePixel  = 0
 		btn.Text             = ""
 		btn.AutoButtonColor  = false
@@ -170,7 +162,7 @@ for row = 1, GameConfig.GRID_SIZE do
 		btn.Parent           = gridFrame
 
 		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0.08, 0)   -- scale-based, stays round on any size
+		btnCorner.CornerRadius = UDim.new(0.08, 0)
 		btnCorner.Parent = btn
 
 		btn.MouseButton1Click:Connect(function()
@@ -181,7 +173,7 @@ for row = 1, GameConfig.GRID_SIZE do
 	end
 end
 
--- ── Status label (bottom of panel) ──────────────────────────────────────────
+-- ── Status label ──────────────────────────────────────────────────────────
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name               = "StatusLabel"
 statusLabel.AnchorPoint        = Vector2.new(0.5, 1)
@@ -194,7 +186,7 @@ statusLabel.TextScaled         = true
 statusLabel.Font               = Enum.Font.Gotham
 statusLabel.Parent             = mainFrame
 
--- ── Countdown overlay (large centered, ZIndex on top) ───────────────────────
+-- ── Countdown overlay ────────────────────────────────────────────────────
 local countdownLabel = Instance.new("TextLabel")
 countdownLabel.Name            = "CountdownLabel"
 countdownLabel.AnchorPoint     = Vector2.new(0.5, 0.5)
@@ -210,7 +202,45 @@ countdownLabel.ZIndex          = 10
 countdownLabel.Parent          = mainFrame
 
 -- ══════════════════════════════════════════════════════════════════════════════
---  GAME LOGIC  (unchanged from original)
+--  THEME SYSTEM
+-- ══════════════════════════════════════════════════════════════════════════════
+
+-- Track current lives for heart recoloring on theme change
+local currentLives1 = 3
+local currentLives2 = 0
+
+local function ApplyTheme(themeKey)
+	local theme = ThemeConfig.Themes[themeKey]
+	if not theme then return end
+	currentTheme = theme
+
+	-- Static panel + square defaults
+	mainFrame.BackgroundColor3 = theme.Colors.Panel
+	for _, btn in pairs(gridButtons) do
+		btn.BackgroundColor3 = theme.Colors.Square
+	end
+
+	-- Recolor hearts based on current lives
+	for i, h in ipairs(p1HeartLabels) do
+		h.TextColor3 = (i <= currentLives1) and theme.Colors.HeartAlive or theme.Colors.HeartDead
+	end
+	for i, h in ipairs(p2HeartLabels) do
+		h.TextColor3 = (i <= currentLives2) and theme.Colors.HeartAlive or theme.Colors.HeartDead
+	end
+end
+
+-- Listen for theme changes fired by the shop client
+local bindableEvents = ReplicatedStorage:WaitForChild("BindableEvents")
+local themeChangedEvent = bindableEvents:WaitForChild("ThemeChanged")
+themeChangedEvent.Event:Connect(ApplyTheme)
+
+-- Apply equipped theme when server sends data on join
+themeDataEvent.OnClientEvent:Connect(function(ownedThemes, equippedTheme)
+	ApplyTheme(equippedTheme)
+end)
+
+-- ══════════════════════════════════════════════════════════════════════════════
+--  GAME LOGIC
 -- ══════════════════════════════════════════════════════════════════════════════
 
 local currentSequence  = {}
@@ -228,7 +258,7 @@ function ShowSequence(sequence, shouldShowAnimation)
 	lastClickTime     = {}
 
 	for _, button in pairs(gridButtons) do
-		button.BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+		button.BackgroundColor3 = currentTheme.Colors.Square
 	end
 
 	if shouldShowAnimation then
@@ -237,12 +267,12 @@ function ShowSequence(sequence, shouldShowAnimation)
 		for i, position in ipairs(sequence) do
 			task.wait(GameConfig.SEQUENCE_GAP_TIME)
 			if gridButtons[position] then
-				gridButtons[position].BackgroundColor3 = GameConfig.SQUARE_HIGHLIGHT_COLOR
+				gridButtons[position].BackgroundColor3 = currentTheme.Colors.Highlight
 				if soundInstances[position] then soundInstances[position]:Play() end
 			end
 			task.wait(GameConfig.SEQUENCE_DISPLAY_TIME)
 			if gridButtons[position] then
-				gridButtons[position].BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+				gridButtons[position].BackgroundColor3 = currentTheme.Colors.Square
 			end
 		end
 
@@ -258,7 +288,7 @@ end
 
 function ShowFeedback(isCorrect)
 	canInput = false
-	local color = isCorrect and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+	local color = isCorrect and currentTheme.Colors.Active or currentTheme.Colors.Wrong
 	for _, button in pairs(gridButtons) do
 		button.BackgroundColor3 = color
 	end
@@ -267,7 +297,7 @@ function ShowFeedback(isCorrect)
 
 	task.wait(1)
 	for _, button in pairs(gridButtons) do
-		button.BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+		button.BackgroundColor3 = currentTheme.Colors.Square
 	end
 	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	playerInputs = {}
@@ -283,10 +313,10 @@ function OnSquareClick(position)
 	print("CLICK:", position, "| gap:", math.floor(timeSinceLastClick * 1000) .. "ms")
 
 	if gridButtons[position] then
-		gridButtons[position].BackgroundColor3 = GameConfig.SQUARE_ACTIVE_COLOR
+		gridButtons[position].BackgroundColor3 = currentTheme.Colors.Active
 		task.delay(0.06, function()
 			if gridButtons[position] then
-				gridButtons[position].BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+				gridButtons[position].BackgroundColor3 = currentTheme.Colors.Square
 			end
 		end)
 	end
@@ -301,23 +331,25 @@ function ShowResult(won, sequenceLength)
 	canInput = false
 	if won then
 		statusLabel.Text       = "YOU WIN! 🎉 Sequence: " .. sequenceLength
-		statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+		statusLabel.TextColor3 = currentTheme.Colors.Active
 	else
 		statusLabel.Text       = "YOU LOSE! Sequence: " .. sequenceLength
-		statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		statusLabel.TextColor3 = currentTheme.Colors.Wrong
 	end
 end
 
 function UpdateLives(lives1, lives2)
+	currentLives1 = lives1
+	currentLives2 = lives2
 	if lives2 > 0 then isMultiplayer = true end
 	for i, h in ipairs(p1HeartLabels) do
-		h.TextColor3 = (i <= lives1) and HEART_ALIVE or HEART_DEAD
+		h.TextColor3 = (i <= lives1) and currentTheme.Colors.HeartAlive or currentTheme.Colors.HeartDead
 	end
 	if isMultiplayer then
 		vsLabel.Visible = true
 		for i, h in ipairs(p2HeartLabels) do
 			h.Visible    = true
-			h.TextColor3 = (i <= lives2) and HEART_ALIVE or HEART_DEAD
+			h.TextColor3 = (i <= lives2) and currentTheme.Colors.HeartAlive or currentTheme.Colors.HeartDead
 		end
 	end
 end
@@ -331,9 +363,11 @@ showGameUIEvent.OnClientEvent:Connect(function(show)
 		isShowingSequence = false
 		isMyTurn          = false
 		isMultiplayer     = false
+		currentLives1     = 3
+		currentLives2     = 0
 		vsLabel.Visible   = false
-		for _, h in ipairs(p1HeartLabels) do h.TextColor3 = HEART_ALIVE end
-		for _, h in ipairs(p2HeartLabels) do h.Visible = false; h.TextColor3 = HEART_ALIVE end
+		for _, h in ipairs(p1HeartLabels) do h.TextColor3 = currentTheme.Colors.HeartAlive end
+		for _, h in ipairs(p2HeartLabels) do h.Visible = false; h.TextColor3 = currentTheme.Colors.HeartAlive end
 		statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	end
 end)
@@ -363,7 +397,7 @@ turnNotificationEvent.OnClientEvent:Connect(function(isYourTurn, playerName)
 	isMyTurn = isYourTurn
 	if isYourTurn then
 		statusLabel.Text       = "YOUR TURN!"
-		statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+		statusLabel.TextColor3 = currentTheme.Colors.Active
 	else
 		statusLabel.Text       = playerName .. "'s turn - waiting..."
 		statusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)

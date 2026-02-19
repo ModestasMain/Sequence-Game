@@ -25,7 +25,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	local joinScreenPart = joinScreen
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "PlatformBillboard"
-	billboard.Size = UDim2.new(0, 320, 0, 100)
+	billboard.Size = UDim2.new(4, 0, 1.2, 0)   -- studs, not pixels — scales with world
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = 300
@@ -36,9 +36,9 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	billboardModeLabel.Size = UDim2.new(1, 0, 0.42, 0)
 	billboardModeLabel.Position = UDim2.new(0, 0, 0, 0)
 	billboardModeLabel.BackgroundTransparency = 1
-	billboardModeLabel.Text = "SOLO"
+	billboardModeLabel.Text = "Solo Mode"
 	billboardModeLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
-	billboardModeLabel.TextSize = 18
+	billboardModeLabel.TextScaled = true
 	billboardModeLabel.Font = Enum.Font.GothamBold
 	billboardModeLabel.TextStrokeTransparency = 0
 	billboardModeLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -50,7 +50,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	billboardCountLabel.BackgroundTransparency = 1
 	billboardCountLabel.Text = "Available"
 	billboardCountLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	billboardCountLabel.TextSize = 14
+	billboardCountLabel.TextScaled = true
 	billboardCountLabel.Font = Enum.Font.GothamBold
 	billboardCountLabel.TextStrokeTransparency = 0
 	billboardCountLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -341,14 +341,14 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 
 		print("[SoloJoin] Starting solo game for " .. player.Name)
 
-		-- Teleport player in front of the screen so they start at the table
-		if player.Character then
+		-- Teleport player onto the Left part, facing the JoinScreen
+		local leftPart = platformModel:FindFirstChild("Left")
+		if player.Character and leftPart then
 			local hrp = player.Character:FindFirstChild("HumanoidRootPart")
 			if hrp then
-				-- Stand in front of the JoinScreen panel (along its normal/look direction)
-				local screenCFrame = joinScreen.CFrame
-				local standPos = joinScreen.Position + screenCFrame.LookVector * 4 + Vector3.new(0, 1, 0)
-				hrp.CFrame = CFrame.lookAt(standPos, joinScreen.Position)
+				local standPos = leftPart.Position + Vector3.new(0, leftPart.Size.Y / 2 + 2.5, 0)
+				local centerPos = Vector3.new(joinScreen.Position.X, standPos.Y, joinScreen.Position.Z)
+				hrp.CFrame = CFrame.lookAt(standPos, centerPos)
 			end
 		end
 

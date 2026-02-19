@@ -16,7 +16,10 @@ local function getDefaultData()
 		GamesPlayed = 0,
 		HighestSequence = 0,
 		IQ = 100,  -- Starting IQ rating (ELO-style)
-		Streak = 0
+		Streak = 0,
+		LastDailyClaim = 0,
+		OwnedThemes = {"Default"},
+		EquippedTheme = "Default",
 	}
 end
 
@@ -30,6 +33,9 @@ function PlayerDataManager:LoadData(player)
 		-- Migrate old data
 		if not data.IQ then data.IQ = 100 end
 		if not data.Streak then data.Streak = 0 end
+		if not data.LastDailyClaim then data.LastDailyClaim = 0 end
+		if not data.OwnedThemes then data.OwnedThemes = {"Default"} end
+		if not data.EquippedTheme then data.EquippedTheme = "Default" end
 		self.PlayerData[player.UserId] = data
 	else
 		self.PlayerData[player.UserId] = getDefaultData()
@@ -101,6 +107,19 @@ function PlayerDataManager:AddWin(player, coinsEarned)
 		if player.leaderstats:FindFirstChild("Streak") then
 			player.leaderstats.Streak.Value = data.Streak
 		end
+	end
+
+	self:SaveData(player)
+end
+
+function PlayerDataManager:AddCoins(player, amount)
+	local data = self.PlayerData[player.UserId]
+	if not data then return end
+
+	data.Coins = data.Coins + amount
+
+	if player:FindFirstChild("leaderstats") then
+		player.leaderstats.Coins.Value = data.Coins
 	end
 
 	self:SaveData(player)

@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
 
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 local sequenceShowEvent = remoteEvents:WaitForChild("SequenceShow")
@@ -197,6 +198,7 @@ function SoloSession:HandleInput(position)
 		if self.CurrentInputIndex > #self.Sequence then
 			self:StopTimer()
 			print("[Solo] Correct sequence! Length: " .. self.SequenceLength .. " by " .. self.Player.Name)
+			PlayerDataManager:AddCoins(self.Player, GameConfig.SOLO_CORRECT_COINS)
 			sequenceFeedbackEvent:FireClient(self.Player, true)
 			if lp then
 				lp:ShowFeedback(true)
@@ -265,9 +267,14 @@ function SoloSession:HandleWrongInput()
 	end
 end
 
-function SoloSession:EndGame()
+function SoloSession:EndGame(forced)
+	if not self.Active then return end
 	self.Active = false
 	self:StopTimer()
+
+	if forced then
+		PlayerDataManager:AddLoss(self.Player, 0)
+	end
 
 	print("[Solo] Game over for " .. self.Player.Name .. " - Reached sequence: " .. self.SequenceLength)
 
@@ -320,36 +327,48 @@ function SoloGameManager:StartGame(player, platform)
 	local session = SoloSession.new(player, platform)
 	self.ActiveGames[session] = true
 
-	-- Listen for input
 	local inputConnection
+	local disconnectConnection
+	local resetConnection
+
+	local function cleanup()
+		if inputConnection then inputConnection:Disconnect() end
+		if disconnectConnection then disconnectConnection:Disconnect() end
+		if resetConnection then resetConnection:Disconnect() end
+		self.ActiveGames[session] = nil
+	end
+
+	local function forceEnd()
+		if not session.Active then return end
+		print("[Solo] " .. player.Name .. " left or reset — ending game")
+		session:EndGame(true)
+		cleanup()
+	end
+
+	-- Listen for input
 	inputConnection = playerInputEvent.OnServerEvent:Connect(function(inputPlayer, position)
 		if inputPlayer == player and session.Active then
 			session:HandleInput(position)
 		end
 	end)
 
-	-- Listen for disconnect
-	local disconnectConnection
+	-- Player leaves
 	disconnectConnection = game.Players.PlayerRemoving:Connect(function(leavingPlayer)
-		if leavingPlayer == player and session.Active then
-			session.Active = false
-			session:StopTimer()
-			if platform then platform:Reset() end
-			self.ActiveGames[session] = nil
-			inputConnection:Disconnect()
-			disconnectConnection:Disconnect()
+		if leavingPlayer == player then
+			forceEnd()
 		end
 	end)
 
-	-- Clean up when game ends
+	-- Player resets character
+	resetConnection = player.CharacterAdded:Connect(function()
+		forceEnd()
+	end)
+
+	-- Clean up connections after game ends naturally
 	task.spawn(function()
 		session:Start()
-		-- After game ends, clean up connections
 		task.wait(5)
-		if not session.Active then
-			inputConnection:Disconnect()
-			disconnectConnection:Disconnect()
-		end
+		cleanup()
 	end)
 end
 

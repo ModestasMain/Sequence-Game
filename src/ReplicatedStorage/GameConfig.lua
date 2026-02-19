@@ -13,6 +13,7 @@ GameConfig.INPUT_TIMEOUT = 30 -- seconds to complete sequence
 -- Rewards
 GameConfig.WIN_COINS = 50
 GameConfig.PARTICIPATION_COINS = 10
+GameConfig.SOLO_CORRECT_COINS = 2
 
 -- Lobby Settings
 GameConfig.PLATFORM_WAIT_TIME = 3 -- seconds before game starts
