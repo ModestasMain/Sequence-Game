@@ -15,7 +15,8 @@ local function getDefaultData()
 		Coins = 0,
 		GamesPlayed = 0,
 		HighestSequence = 0,
-		IQ = 100  -- Starting IQ rating (ELO-style)
+		IQ = 100,  -- Starting IQ rating (ELO-style)
+		Streak = 0
 	}
 end
 
@@ -26,10 +27,9 @@ function PlayerDataManager:LoadData(player)
 	end)
 
 	if success and data then
-		-- Migrate old data: add IQ if it doesn't exist
-		if not data.IQ then
-			data.IQ = 100
-		end
+		-- Migrate old data
+		if not data.IQ then data.IQ = 100 end
+		if not data.Streak then data.Streak = 0 end
 		self.PlayerData[player.UserId] = data
 	else
 		self.PlayerData[player.UserId] = getDefaultData()
@@ -77,6 +77,11 @@ function PlayerDataManager:CreateLeaderstats(player)
 	coins.Name = "Coins"
 	coins.Value = data.Coins
 	coins.Parent = leaderstats
+
+	local streak = Instance.new("IntValue")
+	streak.Name = "Streak"
+	streak.Value = data.Streak or 0
+	streak.Parent = leaderstats
 end
 
 -- Update player stats
@@ -87,11 +92,15 @@ function PlayerDataManager:AddWin(player, coinsEarned)
 	data.Wins = data.Wins + 1
 	data.Coins = data.Coins + coinsEarned
 	data.GamesPlayed = data.GamesPlayed + 1
+	data.Streak = (data.Streak or 0) + 1
 
 	-- Update leaderstats
 	if player:FindFirstChild("leaderstats") then
 		player.leaderstats.Wins.Value = data.Wins
 		player.leaderstats.Coins.Value = data.Coins
+		if player.leaderstats:FindFirstChild("Streak") then
+			player.leaderstats.Streak.Value = data.Streak
+		end
 	end
 
 	self:SaveData(player)
@@ -104,10 +113,14 @@ function PlayerDataManager:AddLoss(player, coinsEarned)
 	data.Losses = data.Losses + 1
 	data.Coins = data.Coins + coinsEarned
 	data.GamesPlayed = data.GamesPlayed + 1
+	data.Streak = 0
 
 	-- Update leaderstats
 	if player:FindFirstChild("leaderstats") then
 		player.leaderstats.Coins.Value = data.Coins
+		if player.leaderstats:FindFirstChild("Streak") then
+			player.leaderstats.Streak.Value = 0
+		end
 	end
 
 	self:SaveData(player)
