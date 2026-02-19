@@ -26,6 +26,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	local gameInProgress = false
 	local countdownActive = false
 	local debounce = {}
+	local lockedPlayers = {} -- [player] = {connection, origWalkSpeed}
 
 	-- === FLOATING BILLBOARD (above platform) ===
 	local joinScreenPart = joinScreen -- the Part itself
@@ -85,6 +86,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	lobbyFrame.Size = UDim2.new(1, 0, 1, 0)
 	lobbyFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 	lobbyFrame.BorderSizePixel = 0
+	lobbyFrame.Visible = false
 	lobbyFrame.Parent = gui
 
 	local corner = Instance.new("UICorner")
@@ -150,7 +152,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	previewFrame.Size = UDim2.new(1, 0, 1, 0)
 	previewFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 	previewFrame.BorderSizePixel = 0
-	previewFrame.Visible = false
+	previewFrame.Visible = true
 	previewFrame.Parent = gui
 
 	local previewCorner = Instance.new("UICorner")
@@ -163,6 +165,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	liveBadge.Position = UDim2.new(0, 10, 0, 10)
 	liveBadge.BackgroundColor3 = Color3.fromRGB(210, 40, 40)
 	liveBadge.BorderSizePixel = 0
+	liveBadge.Visible = false
 	liveBadge.Parent = previewFrame
 	local liveBadgeCorner = Instance.new("UICorner")
 	liveBadgeCorner.CornerRadius = UDim.new(0, 6)
@@ -182,7 +185,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	previewInfoLabel.Size = UDim2.new(1, -10, 0, 36)
 	previewInfoLabel.Position = UDim2.new(0, 5, 0, 46)
 	previewInfoLabel.BackgroundTransparency = 1
-	previewInfoLabel.Text = "Match In Progress"
+	previewInfoLabel.Text = "Waiting for players"
 	previewInfoLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
 	previewInfoLabel.TextSize = 20
 	previewInfoLabel.Font = Enum.Font.GothamBold
@@ -194,7 +197,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	previewLivesLabel.Size = UDim2.new(1, -10, 0, 26)
 	previewLivesLabel.Position = UDim2.new(0, 5, 0, 84)
 	previewLivesLabel.BackgroundTransparency = 1
-	previewLivesLabel.Text = "♥♥♥  vs  ♥♥♥"
+	previewLivesLabel.Text = "0/2 Players"
 	previewLivesLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
 	previewLivesLabel.TextSize = 18
 	previewLivesLabel.Font = Enum.Font.Gotham
@@ -206,7 +209,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	previewSeqLabel.Size = UDim2.new(1, -10, 0, 24)
 	previewSeqLabel.Position = UDim2.new(0, 5, 0, 112)
 	previewSeqLabel.BackgroundTransparency = 1
-	previewSeqLabel.Text = "Sequence: 1"
+	previewSeqLabel.Text = ""
 	previewSeqLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
 	previewSeqLabel.TextSize = 16
 	previewSeqLabel.Font = Enum.Font.Gotham
@@ -248,8 +251,8 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	previewStatusLabel.Size = UDim2.new(1, 0, 0, 36)
 	previewStatusLabel.Position = UDim2.new(0, 0, 1, -48)
 	previewStatusLabel.BackgroundTransparency = 1
-	previewStatusLabel.Text = "Watch the match live!"
-	previewStatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+	previewStatusLabel.Text = "Press E to Join!"
+	previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 	previewStatusLabel.TextSize = 18
 	previewStatusLabel.Font = Enum.Font.Gotham
 	previewStatusLabel.Parent = previewFrame
@@ -258,8 +261,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	local LivePreview = {}
 
 	function LivePreview:Show(player1Name, player2Name)
-		lobbyFrame.Visible = false
-		previewFrame.Visible = true
+		liveBadge.Visible = true
 		previewInfoLabel.Text = player1Name .. "  vs  " .. player2Name
 		previewLivesLabel.Text = "♥♥♥  vs  ♥♥♥"
 		previewSeqLabel.Text = "Sequence: 1"
@@ -269,8 +271,12 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	end
 
 	function LivePreview:Hide()
-		previewFrame.Visible = false
-		lobbyFrame.Visible = true
+		liveBadge.Visible = false
+		previewInfoLabel.Text = "Waiting for players"
+		previewLivesLabel.Text = "0/2 Players"
+		previewSeqLabel.Text = ""
+		previewStatusLabel.Text = "Press E to Join!"
+		previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 		self:ResetAllSquares()
 	end
 
@@ -347,26 +353,22 @@ function JoinScreenManager:SetupPlatform(platformModel)
 		updateBillboard()
 		local count = #waitingPlayers
 		if gameInProgress then
-			-- previewFrame is now shown; nothing to update in lobbyFrame
 			return
 		elseif count == 0 then
-			playerCountLabel.Text = "0/2 Players"
-			playersListLabel.Text = ""
-			statusLabel.Text = "Press E to Join"
-			statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-			playerCountLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+			previewInfoLabel.Text = "Waiting for players"
+			previewLivesLabel.Text = "0/2 Players"
+			previewStatusLabel.Text = "Press E to Join!"
+			previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 		elseif count == 1 then
-			playerCountLabel.Text = "1/2 Players"
-			playersListLabel.Text = waitingPlayers[1].Name .. " is waiting..."
-			statusLabel.Text = "Waiting for opponent..."
-			statusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
-			playerCountLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+			previewInfoLabel.Text = waitingPlayers[1].Name .. " is waiting..."
+			previewLivesLabel.Text = "1/2 Players"
+			previewStatusLabel.Text = "Need 1 more player!"
+			previewStatusLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
 		else
-			playerCountLabel.Text = "2/2 Players"
-			playersListLabel.Text = waitingPlayers[1].Name .. "\n" .. waitingPlayers[2].Name
-			statusLabel.Text = "Starting Match..."
-			statusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
-			playerCountLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+			previewInfoLabel.Text = waitingPlayers[1].Name .. "  vs  " .. waitingPlayers[2].Name
+			previewLivesLabel.Text = "2/2 Players"
+			previewStatusLabel.Text = "Starting Match..."
+			previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 		end
 	end
 
@@ -377,16 +379,64 @@ function JoinScreenManager:SetupPlatform(platformModel)
 		return false
 	end
 
+	local function unlockPlayer(player)
+		local data = lockedPlayers[player]
+		if not data then return end
+		data.connection:Disconnect()
+		lockedPlayers[player] = nil
+		if player.Character then
+			local humanoid = player.Character:FindFirstChild("Humanoid")
+			if humanoid then
+				humanoid.WalkSpeed = data.origWalkSpeed
+			end
+		end
+	end
+
 	local function removePlayer(player)
 		for i, p in ipairs(waitingPlayers) do
 			if p == player then
 				table.remove(waitingPlayers, i)
+				unlockPlayer(player)
 				print("[JoinScreen] " .. player.Name .. " left the queue on " .. platformModel.Name)
 				updateDisplay()
 				return true
 			end
 		end
 		return false
+	end
+
+	local function lockPlayerToSpot(player, part)
+		local character = player.Character
+		if not character then return end
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChild("Humanoid")
+		if not hrp or not humanoid then return end
+
+		local origWalkSpeed = humanoid.WalkSpeed
+
+		-- Teleport above the part, facing the table center
+		local standPos = part.Position + Vector3.new(0, part.Size.Y / 2 + 2.5, 0)
+		local centerPos = Vector3.new(joinScreenPart.Position.X, standPos.Y, joinScreenPart.Position.Z)
+		hrp.CFrame = CFrame.lookAt(standPos, centerPos)
+
+		-- Prevent walking but keep jump ability so player can jump to exit
+		humanoid.WalkSpeed = 0
+
+		-- Detect jump → exit queue (only if game hasn't started yet)
+		local connection
+		connection = humanoid.StateChanged:Connect(function(_, newState)
+			if newState == Enum.HumanoidStateType.Jumping then
+				connection:Disconnect()
+				lockedPlayers[player] = nil
+				humanoid.WalkSpeed = origWalkSpeed
+				-- Don't remove if countdown/game already in progress — GameSession takes over
+				if not gameInProgress and not countdownActive then
+					removePlayer(player)
+				end
+			end
+		end)
+
+		lockedPlayers[player] = { connection = connection, origWalkSpeed = origWalkSpeed }
 	end
 
 	local function startGame()
@@ -402,15 +452,19 @@ function JoinScreenManager:SetupPlatform(platformModel)
 
 		print("[JoinScreen] Starting game: " .. player1.Name .. " vs " .. player2.Name .. " on " .. platformModel.Name)
 
-		statusLabel.Text = "Starting in 3..."
+		previewStatusLabel.Text = "Starting in 3..."
 		task.wait(1)
-		statusLabel.Text = "Starting in 2..."
+		previewStatusLabel.Text = "Starting in 2..."
 		task.wait(1)
-		statusLabel.Text = "Starting in 1..."
+		previewStatusLabel.Text = "Starting in 1..."
 		task.wait(1)
 
 		-- Switch to live preview immediately
 		LivePreview:Show(player1.Name, player2.Name)
+
+		-- Unlock queue position locks — GameSession:Start() will re-position and re-lock
+		unlockPlayer(player1)
+		unlockPlayer(player2)
 
 		local GameManager = require(game.ServerScriptService:WaitForChild("GameManager"))
 
@@ -456,6 +510,14 @@ function JoinScreenManager:SetupPlatform(platformModel)
 
 		table.insert(waitingPlayers, player)
 		print("[JoinScreen] " .. player.Name .. " joined! Queue: " .. #waitingPlayers .. "/2 on " .. platformModel.Name)
+
+		-- Lock player to their seat (slot 1 = Left, slot 2 = Right)
+		local slot = #waitingPlayers
+		local seatPart = slot == 1 and platformModel:FindFirstChild("Left") or platformModel:FindFirstChild("Right")
+		if seatPart then
+			lockPlayerToSpot(player, seatPart)
+		end
+
 		updateDisplay()
 
 		if #waitingPlayers == 2 then

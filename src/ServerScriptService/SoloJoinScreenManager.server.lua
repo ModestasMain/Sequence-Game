@@ -72,6 +72,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	lobbyFrame.Size = UDim2.new(1, 0, 1, 0)
 	lobbyFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 	lobbyFrame.BorderSizePixel = 0
+	lobbyFrame.Visible = false
 	lobbyFrame.Parent = gui
 
 	local corner = Instance.new("UICorner")
@@ -127,7 +128,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	previewFrame.Size = UDim2.new(1, 0, 1, 0)
 	previewFrame.BackgroundColor3 = Color3.fromRGB(20, 18, 10)
 	previewFrame.BorderSizePixel = 0
-	previewFrame.Visible = false
+	previewFrame.Visible = true
 	previewFrame.Parent = gui
 
 	local previewCorner = Instance.new("UICorner")
@@ -140,6 +141,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	liveBadge.Position = UDim2.new(0, 10, 0, 10)
 	liveBadge.BackgroundColor3 = Color3.fromRGB(210, 40, 40)
 	liveBadge.BorderSizePixel = 0
+	liveBadge.Visible = false
 	liveBadge.Parent = previewFrame
 	local liveBadgeCorner = Instance.new("UICorner")
 	liveBadgeCorner.CornerRadius = UDim.new(0, 6)
@@ -159,7 +161,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	previewInfoLabel.Size = UDim2.new(1, -10, 0, 36)
 	previewInfoLabel.Position = UDim2.new(0, 5, 0, 46)
 	previewInfoLabel.BackgroundTransparency = 1
-	previewInfoLabel.Text = "Solo Run In Progress"
+	previewInfoLabel.Text = "Solo Mode"
 	previewInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 	previewInfoLabel.TextSize = 20
 	previewInfoLabel.Font = Enum.Font.GothamBold
@@ -171,7 +173,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	previewLivesLabel.Size = UDim2.new(1, -10, 0, 26)
 	previewLivesLabel.Position = UDim2.new(0, 5, 0, 84)
 	previewLivesLabel.BackgroundTransparency = 1
-	previewLivesLabel.Text = "Lives: ♥♥♥"
+	previewLivesLabel.Text = "How far can you go?"
 	previewLivesLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
 	previewLivesLabel.TextSize = 18
 	previewLivesLabel.Font = Enum.Font.Gotham
@@ -183,7 +185,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	previewSeqLabel.Size = UDim2.new(1, -10, 0, 24)
 	previewSeqLabel.Position = UDim2.new(0, 5, 0, 112)
 	previewSeqLabel.BackgroundTransparency = 1
-	previewSeqLabel.Text = "Sequence: 1"
+	previewSeqLabel.Text = ""
 	previewSeqLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 	previewSeqLabel.TextSize = 16
 	previewSeqLabel.Font = Enum.Font.Gotham
@@ -225,8 +227,8 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	previewStatusLabel.Size = UDim2.new(1, 0, 0, 36)
 	previewStatusLabel.Position = UDim2.new(0, 0, 1, -48)
 	previewStatusLabel.BackgroundTransparency = 1
-	previewStatusLabel.Text = "Watch the solo run live!"
-	previewStatusLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+	previewStatusLabel.Text = "Press E to Play!"
+	previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 	previewStatusLabel.TextSize = 18
 	previewStatusLabel.Font = Enum.Font.Gotham
 	previewStatusLabel.Parent = previewFrame
@@ -235,8 +237,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	local LivePreview = {}
 
 	function LivePreview:Show(playerName)
-		lobbyFrame.Visible = false
-		previewFrame.Visible = true
+		liveBadge.Visible = true
 		previewInfoLabel.Text = playerName .. " — Solo Run"
 		previewLivesLabel.Text = "Lives: " .. string.rep("♥", GameConfig.STARTING_LIVES)
 		previewSeqLabel.Text = "Sequence: 1"
@@ -246,8 +247,12 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	end
 
 	function LivePreview:Hide()
-		previewFrame.Visible = false
-		lobbyFrame.Visible = true
+		liveBadge.Visible = false
+		previewInfoLabel.Text = "Solo Mode"
+		previewLivesLabel.Text = "How far can you go?"
+		previewSeqLabel.Text = ""
+		previewStatusLabel.Text = "Press E to Play!"
+		previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 		self:ResetAllSquares()
 	end
 
@@ -314,8 +319,8 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 		if gameInProgress then
 			return
 		else
-			statusLabel.Text = "Press E to Play"
-			statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+			previewStatusLabel.Text = "Press E to Play!"
+			previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 		end
 	end
 
@@ -335,6 +340,17 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 		updateDisplay()
 
 		print("[SoloJoin] Starting solo game for " .. player.Name)
+
+		-- Teleport player in front of the screen so they start at the table
+		if player.Character then
+			local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				-- Stand in front of the JoinScreen panel (along its normal/look direction)
+				local screenCFrame = joinScreen.CFrame
+				local standPos = joinScreen.Position + screenCFrame.LookVector * 4 + Vector3.new(0, 1, 0)
+				hrp.CFrame = CFrame.lookAt(standPos, joinScreen.Position)
+			end
+		end
 
 		-- Switch to live preview immediately
 		LivePreview:Show(player.Name)
