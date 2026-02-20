@@ -21,6 +21,9 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	local gameInProgress = false
 	local debounce = {}
 
+	-- Read grid size from platform attribute (default 3x3)
+	local gridSize = platformModel:GetAttribute("GridSize") or GameConfig.GRID_SIZE
+
 	-- === FLOATING BILLBOARD (above platform) ===
 	local joinScreenPart = joinScreen
 	local billboard = Instance.new("BillboardGui")
@@ -36,7 +39,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	billboardModeLabel.Size = UDim2.new(1, 0, 0.42, 0)
 	billboardModeLabel.Position = UDim2.new(0, 0, 0, 0)
 	billboardModeLabel.BackgroundTransparency = 1
-	billboardModeLabel.Text = "Solo Mode"
+	billboardModeLabel.Text = gridSize == 5 and "Solo (5x5)" or "Solo Mode"
 	billboardModeLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 	billboardModeLabel.TextScaled = true
 	billboardModeLabel.Font = Enum.Font.GothamBold
@@ -191,10 +194,10 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	previewSeqLabel.Font = Enum.Font.Gotham
 	previewSeqLabel.Parent = previewFrame
 
-	-- 3x3 grid
-	local squareSize = 110
+	-- Grid preview: scale square size so total fits the same display area
+	local squareSize = gridSize == 5 and 62 or 110
 	local squareGap = 8
-	local gridTotal = GameConfig.GRID_SIZE * squareSize + (GameConfig.GRID_SIZE - 1) * squareGap
+	local gridTotal = gridSize * squareSize + (gridSize - 1) * squareGap
 
 	local gridFrame = Instance.new("Frame")
 	gridFrame.Name = "GridFrame"
@@ -204,9 +207,9 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	gridFrame.Parent = previewFrame
 
 	local previewSquares = {}
-	for row = 1, GameConfig.GRID_SIZE do
-		for col = 1, GameConfig.GRID_SIZE do
-			local pos = (row - 1) * GameConfig.GRID_SIZE + col
+	for row = 1, gridSize do
+		for col = 1, gridSize do
+			local pos = (row - 1) * gridSize + col
 			local sq = Instance.new("Frame")
 			sq.Name = "Square" .. pos
 			sq.Size = UDim2.new(0, squareSize, 0, squareSize)
@@ -373,7 +376,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 			print("[SoloJoin] " .. platformModel.Name .. " reset")
 		end
 
-		SoloGameManager:StartGame(player, platformObj)
+		SoloGameManager:StartGame(player, platformObj, gridSize)
 	end)
 
 	game.Players.PlayerRemoving:Connect(function(player)
@@ -385,13 +388,18 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 end
 
 function SoloJoinScreenManager:Initialize()
-	local workspace = game.Workspace
-
-	for _, child in pairs(workspace:GetChildren()) do
-		if child:IsA("Model") and child.Name:match("^SoloPlatform") and child:FindFirstChild("JoinScreen") then
-			self:SetupPlatform(child)
+	-- Scan workspace root and the Lobby folder for solo platforms
+	local function scan(parent)
+		for _, child in pairs(parent:GetChildren()) do
+			if child:IsA("Model") and child.Name:match("^SoloPlatform") and child:FindFirstChild("JoinScreen") then
+				self:SetupPlatform(child)
+			end
 		end
 	end
+
+	scan(game.Workspace)
+	local lobby = game.Workspace:FindFirstChild("Lobby")
+	if lobby then scan(lobby) end
 
 	print("[SoloJoin] All solo platforms initialized")
 end

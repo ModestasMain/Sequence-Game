@@ -24,10 +24,11 @@ GameManager.ActiveGames = {}
 local GameSession = {}
 GameSession.__index = GameSession
 
-function GameSession.new(player1, player2, platform)
+function GameSession.new(player1, player2, platform, gridSize)
 	local self = setmetatable({}, GameSession)
 	self.Players = {player1, player2}
 	self.Platform = platform
+	self.GridSize = gridSize or GameConfig.GRID_SIZE
 	self.Lives = {
 		[player1.UserId] = GameConfig.STARTING_LIVES,
 		[player2.UserId] = GameConfig.STARTING_LIVES
@@ -98,9 +99,9 @@ function GameSession:Start()
 		end
 	end
 
-	-- Show UI to BOTH players immediately
+	-- Show UI to BOTH players immediately (pass gridSize so client builds the right grid)
 	for _, player in ipairs(self.Players) do
-		showGameUIEvent:FireClient(player, true)
+		showGameUIEvent:FireClient(player, true, self.GridSize)
 		updateLivesEvent:FireClient(player, self.Lives[self.Players[1].UserId], self.Lives[self.Players[2].UserId])
 	end
 
@@ -158,8 +159,7 @@ end
 
 function GameSession:GenerateSequence()
 	-- Add one more square to the sequence
-	local gridSize = GameConfig.GRID_SIZE
-	local newPosition = math.random(1, gridSize * gridSize)
+	local newPosition = math.random(1, self.GridSize * self.GridSize)
 	table.insert(self.Sequence, newPosition)
 	self.SequenceLength = #self.Sequence
 
@@ -185,10 +185,11 @@ function GameSession:StopTimer()
 		end)
 		self.TimerThread = nil
 	end
+end
 
-	-- Hide timer for both players
+function GameSession:HideTimer()
 	for _, player in ipairs(self.Players) do
-		updateTimerEvent:FireClient(player, 0, false)
+		updateTimerEvent:FireClient(player, 0, "hidden")
 	end
 end
 
@@ -196,8 +197,8 @@ function GameSession:StartTimer()
 	-- Stop any existing timer
 	self:StopTimer()
 
-	-- Calculate timer duration: 10 base seconds + 1.5 seconds per sequence length
-	local timerDuration = 10 + (self.SequenceLength - 1) * 1.5
+	local perStep = self.GridSize == 5 and GameConfig.TIMER_PER_STEP_SECONDS_5X5 or GameConfig.TIMER_PER_STEP_SECONDS
+	local timerDuration = GameConfig.TIMER_BASE_SECONDS + (self.SequenceLength - 1) * perStep
 	local currentPlayer = self.Players[self.CurrentPlayerTurn]
 
 	print("Starting timer: " .. timerDuration .. " seconds for " .. currentPlayer.Name)
@@ -206,30 +207,20 @@ function GameSession:StartTimer()
 	self.TimerThread = task.spawn(function()
 		local timeRemaining = timerDuration
 
-		while timeRemaining > 0 and self.TimerActive and self.Active do
-			-- Send timer update to current player only
-			updateTimerEvent:FireClient(currentPlayer, timeRemaining, true)
-
+		-- Fire immediately so timer snaps to active the moment input phase begins
+		while self.TimerActive and self.Active do
+			updateTimerEvent:FireClient(currentPlayer, timeRemaining, "active")
+			if timeRemaining <= 0 then break end
 			task.wait(0.1)
 			timeRemaining = timeRemaining - 0.1
 		end
 
-		-- Debug logging
-		print("=== TIMER LOOP EXITED ===")
-		print("Time remaining:", timeRemaining)
-		print("TimerActive:", self.TimerActive)
-		print("Game Active:", self.Active)
-
-		-- Timer ran out! (time reached 0, but timer wasn't manually stopped)
+		-- Timer ran out (timeRemaining hit 0 without being manually stopped)
 		if self.TimerActive and self.Active and timeRemaining <= 0 then
 			print("⏱ " .. currentPlayer.Name .. " RAN OUT OF TIME!")
 			self.TimerActive = false
-			updateTimerEvent:FireClient(currentPlayer, 0, false)
-
-			-- Treat as wrong input (lose a life)
+			self:HideTimer()
 			self:HandleWrongInput(currentPlayer)
-		else
-			print("Timer stopped normally (not timeout)")
 		end
 	end)
 end
@@ -270,6 +261,11 @@ function GameSession:StartRound()
 
 	-- Wait a moment to ensure turn notification is processed before showing sequence
 	task.wait(0.2)
+
+	-- Show timer in paused (gray) state immediately so it's visible during the sequence preview
+	local perStep = self.GridSize == 5 and GameConfig.TIMER_PER_STEP_SECONDS_5X5 or GameConfig.TIMER_PER_STEP_SECONDS
+	local timerDuration = GameConfig.TIMER_BASE_SECONDS + (self.SequenceLength - 1) * perStep
+	updateTimerEvent:FireClient(currentPlayer, timerDuration, "paused")
 
 	-- Reset input index BEFORE showing sequence (prevents race condition with fast clickers!)
 	self.CurrentInputIndex = 1
@@ -422,8 +418,9 @@ function GameSession:EndGame(loser, forced)
 	if not self.Active then return end
 	self.Active = false
 
-	-- Stop any active timer
+	-- Stop any active timer and hide it for both players
 	self:StopTimer()
+	self:HideTimer()
 
 	-- Reset platform immediately so the table stops showing gameplay
 	if self.Platform then
@@ -514,7 +511,7 @@ function GameSession:Cleanup()
 end
 
 -- Public API
-function GameManager:StartGame(player1, player2, platform)
+function GameManager:StartGame(player1, player2, platform, gridSize)
 	-- Check if either player is already in an active game
 	for session in pairs(self.ActiveGames) do
 		if table.find(session.Players, player1) or table.find(session.Players, player2) then
@@ -524,7 +521,7 @@ function GameManager:StartGame(player1, player2, platform)
 		end
 	end
 
-	local session = GameSession.new(player1, player2, platform)
+	local session = GameSession.new(player1, player2, platform, gridSize)
 	self.ActiveGames[session] = true
 	session:Start()
 end

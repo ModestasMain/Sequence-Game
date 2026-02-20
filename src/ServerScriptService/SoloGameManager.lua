@@ -23,10 +23,11 @@ SoloGameManager.ActiveGames = {}
 local SoloSession = {}
 SoloSession.__index = SoloSession
 
-function SoloSession.new(player, platform)
+function SoloSession.new(player, platform, gridSize)
 	local self = setmetatable({}, SoloSession)
 	self.Player = player
 	self.Platform = platform
+	self.GridSize = gridSize or GameConfig.GRID_SIZE
 	self.Active = true
 	self.Sequence = {}
 	self.SequenceLength = 0
@@ -44,7 +45,7 @@ function SoloSession:LP()
 end
 
 function SoloSession:GenerateSequence()
-	local newPosition = math.random(1, GameConfig.GRID_SIZE * GameConfig.GRID_SIZE)
+	local newPosition = math.random(1, self.GridSize * self.GridSize)
 	table.insert(self.Sequence, newPosition)
 	self.SequenceLength = #self.Sequence
 	print("[Solo] Sequence length: " .. self.SequenceLength .. " for " .. self.Player.Name)
@@ -57,23 +58,24 @@ end
 
 function SoloSession:StartTimer()
 	self:StopTimer()
-	local baseTime = 10
-	local extraTime = (self.SequenceLength - 1) * 1.5
-	local totalTime = baseTime + extraTime
+	local perStep = self.GridSize == 5 and GameConfig.TIMER_PER_STEP_SECONDS_5X5 or GameConfig.TIMER_PER_STEP_SECONDS
+	local totalTime = GameConfig.TIMER_BASE_SECONDS + (self.SequenceLength - 1) * perStep
 	self.TimerActive = true
 
 	self.TimerThread = task.spawn(function()
 		local timeRemaining = totalTime
-		while timeRemaining > 0 and self.TimerActive and self.Active do
-			updateTimerEvent:FireClient(self.Player, timeRemaining, true)
+
+		while self.TimerActive and self.Active do
+			updateTimerEvent:FireClient(self.Player, timeRemaining, "active")
+			if timeRemaining <= 0 then break end
 			task.wait(0.1)
 			timeRemaining = timeRemaining - 0.1
 		end
 
-		if self.TimerActive and self.Active then
+		if self.TimerActive and self.Active and timeRemaining <= 0 then
 			print("[Solo] Timer expired for " .. self.Player.Name)
 			self.TimerActive = false
-			updateTimerEvent:FireClient(self.Player, 0, false)
+			self:HideTimer()
 			self:HandleWrongInput()
 		end
 	end)
@@ -87,7 +89,10 @@ function SoloSession:StopTimer()
 		end)
 		self.TimerThread = nil
 	end
-	updateTimerEvent:FireClient(self.Player, 0, false)
+end
+
+function SoloSession:HideTimer()
+	updateTimerEvent:FireClient(self.Player, 0, "hidden")
 end
 
 function SoloSession:Start()
@@ -116,8 +121,8 @@ function SoloSession:Start()
 		end
 	end
 
-	-- Show UI
-	showGameUIEvent:FireClient(self.Player, true)
+	-- Show UI (pass gridSize so client builds the right grid)
+	showGameUIEvent:FireClient(self.Player, true, self.GridSize)
 	updateLivesEvent:FireClient(self.Player, self.Lives, 0)
 
 	-- Update preview lives on start
@@ -156,6 +161,11 @@ function SoloSession:NextRound()
 		lp:ResetAllSquares()
 		lp:UpdateStatus(self.Player.Name .. " is watching the sequence...", Color3.fromRGB(160, 160, 160))
 	end
+
+	-- Show timer paused so it's visible while sequence plays
+	local perStep = self.GridSize == 5 and GameConfig.TIMER_PER_STEP_SECONDS_5X5 or GameConfig.TIMER_PER_STEP_SECONDS
+	local timerDuration = GameConfig.TIMER_BASE_SECONDS + (self.SequenceLength - 1) * perStep
+	updateTimerEvent:FireClient(self.Player, timerDuration, "paused")
 
 	-- Send sequence
 	turnNotificationEvent:FireClient(self.Player, true, self.Player.Name)
@@ -245,6 +255,11 @@ function SoloSession:HandleWrongInput()
 			lp:UpdateStatus(self.Player.Name .. " retrying sequence...", Color3.fromRGB(255, 160, 80))
 		end
 
+		-- Show timer paused for retry
+		local perStep = self.GridSize == 5 and GameConfig.TIMER_PER_STEP_SECONDS_5X5 or GameConfig.TIMER_PER_STEP_SECONDS
+		local timerDuration = GameConfig.TIMER_BASE_SECONDS + (self.SequenceLength - 1) * perStep
+		updateTimerEvent:FireClient(self.Player, timerDuration, "paused")
+
 		turnNotificationEvent:FireClient(self.Player, true, self.Player.Name)
 		sequenceShowEvent:FireClient(self.Player, self.Sequence)
 
@@ -277,6 +292,7 @@ function SoloSession:EndGame(forced)
 	if not self.Active then return end
 	self.Active = false
 	self:StopTimer()
+	self:HideTimer()
 
 	-- Reset platform immediately so the table stops showing gameplay
 	if self.Platform then
@@ -319,7 +335,7 @@ function SoloSession:EndGame(forced)
 end
 
 -- Public API
-function SoloGameManager:StartGame(player, platform)
+function SoloGameManager:StartGame(player, platform, gridSize)
 	-- Check if player already in a game
 	for session in pairs(self.ActiveGames) do
 		if session.Player == player then
@@ -328,7 +344,7 @@ function SoloGameManager:StartGame(player, platform)
 		end
 	end
 
-	local session = SoloSession.new(player, platform)
+	local session = SoloSession.new(player, platform, gridSize)
 	self.ActiveGames[session] = true
 
 	local inputConnection

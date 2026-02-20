@@ -28,6 +28,9 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	local debounce = {}
 	local lockedPlayers = {} -- [player] = {connection, origWalkSpeed}
 
+	-- Read grid size from platform attribute (default 3x3)
+	local gridSize = platformModel:GetAttribute("GridSize") or GameConfig.GRID_SIZE
+
 	-- === FLOATING BILLBOARD (above platform) ===
 	local joinScreenPart = joinScreen -- the Part itself
 	local billboard = Instance.new("BillboardGui")
@@ -43,7 +46,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	billboardModeLabel.Size = UDim2.new(1, 0, 0.42, 0)
 	billboardModeLabel.Position = UDim2.new(0, 0, 0, 0)
 	billboardModeLabel.BackgroundTransparency = 1
-	billboardModeLabel.Text = "1v1"
+	billboardModeLabel.Text = gridSize == 5 and "1v1 (5x5)" or "1v1"
 	billboardModeLabel.TextColor3 = Color3.fromRGB(100, 210, 255)
 	billboardModeLabel.TextScaled = true
 	billboardModeLabel.Font = Enum.Font.GothamBold
@@ -215,10 +218,10 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	previewSeqLabel.Font = Enum.Font.Gotham
 	previewSeqLabel.Parent = previewFrame
 
-	-- 3x3 grid
-	local squareSize = 110
+	-- Grid preview: scale square size so total fits the same display area
+	local squareSize = gridSize == 5 and 62 or 110
 	local squareGap = 8
-	local gridTotal = GameConfig.GRID_SIZE * squareSize + (GameConfig.GRID_SIZE - 1) * squareGap
+	local gridTotal = gridSize * squareSize + (gridSize - 1) * squareGap
 
 	local gridFrame = Instance.new("Frame")
 	gridFrame.Name = "GridFrame"
@@ -228,9 +231,9 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	gridFrame.Parent = previewFrame
 
 	local previewSquares = {}
-	for row = 1, GameConfig.GRID_SIZE do
-		for col = 1, GameConfig.GRID_SIZE do
-			local pos = (row - 1) * GameConfig.GRID_SIZE + col
+	for row = 1, gridSize do
+		for col = 1, gridSize do
+			local pos = (row - 1) * gridSize + col
 			local sq = Instance.new("Frame")
 			sq.Name = "Square" .. pos
 			sq.Size = UDim2.new(0, squareSize, 0, squareSize)
@@ -486,7 +489,7 @@ function JoinScreenManager:SetupPlatform(platformModel)
 			print("[JoinScreen] " .. platformModel.Name .. " reset")
 		end
 
-		GameManager:StartGame(player1, player2, platformObj)
+		GameManager:StartGame(player1, player2, platformObj, gridSize)
 	end
 
 	-- Handle Press E

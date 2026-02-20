@@ -83,20 +83,20 @@ ThemeConfig.Themes = {
 	Neon = {
 		Name        = "Neon",
 		Price       = 550,
-		SquareIcon  = "✦",   -- four-pointed star — sharp/electric
+		SquareIcon  = "◈",   -- diamond circuit — electric/cyberpunk
 		Sounds = {
 			Click   = "",   -- search: "synth beep" / "electronic click" audio
 			Correct = "",   -- search: "synth success" / "electric chime" audio
 			Wrong   = "",   -- search: "electric zap" / "synth error" audio
 		},
 		Colors = {
-			Panel      = Color3.fromRGB(10, 0, 20),
-			Square     = Color3.fromRGB(30, 10, 50),
-			Highlight  = Color3.fromRGB(200, 0, 255),
-			Active     = Color3.fromRGB(255, 0, 150),
+			Panel      = Color3.fromRGB(2, 0, 8),
+			Square     = Color3.fromRGB(10, 0, 28),
+			Highlight  = Color3.fromRGB(0, 255, 200),
+			Active     = Color3.fromRGB(255, 0, 220),
 			Wrong      = Color3.fromRGB(0, 255, 80),
-			HeartAlive = Color3.fromRGB(255, 0, 200),
-			HeartDead  = Color3.fromRGB(50, 20, 60),
+			HeartAlive = Color3.fromRGB(0, 200, 255),
+			HeartDead  = Color3.fromRGB(20, 5, 40),
 		},
 	},
 
@@ -125,20 +125,20 @@ ThemeConfig.Themes = {
 	Ice = {
 		Name        = "Ice",
 		Price       = 750,
-		SquareIcon  = "❅",   -- tight snowflake — frost/crystal
+		SquareIcon  = "◎",   -- concentric rings — frozen crystal/ice core
 		Sounds = {
 			Click   = "",   -- search: "crystal ping" / "glass tap" audio
 			Correct = "",   -- search: "ice chime" / "glass bell success" audio
 			Wrong   = "",   -- search: "ice crack" / "glass shatter" audio
 		},
 		Colors = {
-			Panel      = Color3.fromRGB(15, 20, 40),
-			Square     = Color3.fromRGB(40, 55, 90),
-			Highlight  = Color3.fromRGB(140, 210, 255),
-			Active     = Color3.fromRGB(200, 240, 255),
-			Wrong      = Color3.fromRGB(255, 100, 200),
-			HeartAlive = Color3.fromRGB(100, 200, 255),
-			HeartDead  = Color3.fromRGB(40, 55, 80),
+			Panel      = Color3.fromRGB(0, 4, 18),
+			Square     = Color3.fromRGB(5, 18, 55),
+			Highlight  = Color3.fromRGB(190, 235, 255),
+			Active     = Color3.fromRGB(255, 255, 255),
+			Wrong      = Color3.fromRGB(255, 20, 110),
+			HeartAlive = Color3.fromRGB(110, 195, 255),
+			HeartDead  = Color3.fromRGB(10, 30, 70),
 		},
 	},
 
@@ -167,40 +167,40 @@ ThemeConfig.Themes = {
 	Lava = {
 		Name        = "Lava",
 		Price       = 900,
-		SquareIcon  = "✸",   -- heavy 8-pointed star — explosion/eruption
+		SquareIcon  = "▲",   -- volcanic triangle — eruption/magma
 		Sounds = {
 			Click   = "",   -- search: "fire crackle" / "ember pop" audio
 			Correct = "",   -- search: "fire roar" / "lava rumble success" audio
 			Wrong   = "",   -- search: "explosion rumble" / "fire error" audio
 		},
 		Colors = {
-			Panel      = Color3.fromRGB(15, 5, 5),
-			Square     = Color3.fromRGB(65, 15, 5),
-			Highlight  = Color3.fromRGB(255, 100, 0),
-			Active     = Color3.fromRGB(255, 160, 0),
-			Wrong      = Color3.fromRGB(255, 0, 0),
-			HeartAlive = Color3.fromRGB(255, 80, 0),
-			HeartDead  = Color3.fromRGB(55, 20, 10),
+			Panel      = Color3.fromRGB(5, 0, 0),
+			Square     = Color3.fromRGB(38, 5, 0),
+			Highlight  = Color3.fromRGB(255, 115, 0),
+			Active     = Color3.fromRGB(255, 230, 0),
+			Wrong      = Color3.fromRGB(255, 0, 20),
+			HeartAlive = Color3.fromRGB(255, 85, 0),
+			HeartDead  = Color3.fromRGB(42, 8, 0),
 		},
 	},
 
 	Galaxy = {
 		Name        = "Galaxy",
 		Price       = 1200,
-		SquareIcon  = "◆",   -- black diamond — cosmic gem
+		SquareIcon  = "◉",   -- planetary eye — cosmic void/nebula core
 		Sounds = {
 			Click   = "",   -- search: "space blip" / "cosmic click" audio
 			Correct = "",   -- search: "space success" / "cosmic chime" audio
 			Wrong   = "",   -- search: "space error" / "cosmic buzz" audio
 		},
 		Colors = {
-			Panel      = Color3.fromRGB(5, 5, 20),
-			Square     = Color3.fromRGB(18, 12, 50),
-			Highlight  = Color3.fromRGB(160, 80, 255),
-			Active     = Color3.fromRGB(210, 110, 255),
-			Wrong      = Color3.fromRGB(255, 50, 110),
-			HeartAlive = Color3.fromRGB(185, 130, 255),
-			HeartDead  = Color3.fromRGB(30, 22, 55),
+			Panel      = Color3.fromRGB(1, 0, 8),
+			Square     = Color3.fromRGB(8, 2, 32),
+			Highlight  = Color3.fromRGB(155, 0, 255),
+			Active     = Color3.fromRGB(255, 80, 255),
+			Wrong      = Color3.fromRGB(255, 25, 75),
+			HeartAlive = Color3.fromRGB(175, 55, 255),
+			HeartDead  = Color3.fromRGB(14, 4, 48),
 		},
 	},
 }

@@ -8,7 +8,9 @@ GameConfig.STARTING_LIVES = 3
 GameConfig.GRID_SIZE = 3 -- 3x3 grid
 GameConfig.SEQUENCE_DISPLAY_TIME = 0.5 -- seconds each square lights up
 GameConfig.SEQUENCE_GAP_TIME = 0.2 -- seconds between squares
-GameConfig.INPUT_TIMEOUT = 30 -- seconds to complete sequence
+GameConfig.TIMER_BASE_SECONDS       = 10  -- base seconds on the input timer
+GameConfig.TIMER_PER_STEP_SECONDS   = 1.5 -- extra seconds per step (3x3 mode)
+GameConfig.TIMER_PER_STEP_SECONDS_5X5 = 1.0 -- extra seconds per step (5x5 hard mode)
 
 -- Rewards
 GameConfig.WIN_COINS = 50
