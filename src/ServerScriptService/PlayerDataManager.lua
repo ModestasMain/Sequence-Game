@@ -18,6 +18,18 @@ end
 local PlayerDataManager = {}
 PlayerDataManager.PlayerData = {} -- Cache for active players
 
+-- Debounced save: collapses rapid successive saves into one write
+local pendingSaves = {}
+function PlayerDataManager:DebouncedSave(player)
+	if pendingSaves[player.UserId] then
+		task.cancel(pendingSaves[player.UserId])
+	end
+	pendingSaves[player.UserId] = task.delay(3, function()
+		pendingSaves[player.UserId] = nil
+		self:SaveData(player)
+	end)
+end
+
 -- Default player data structure
 local function getDefaultData()
 	return {
@@ -33,6 +45,8 @@ local function getDefaultData()
 		EquippedTheme = "Default",
 		OwnedTitles = {},
 		EquippedTitle = "",  -- empty = use IQ auto-title
+		OwnedSounds = {"Default"},
+		EquippedSound = "Default",
 	}
 end
 
@@ -51,6 +65,8 @@ function PlayerDataManager:LoadData(player)
 		if not data.EquippedTheme then data.EquippedTheme = "Default" end
 		if not data.OwnedTitles then data.OwnedTitles = {} end
 		if not data.EquippedTitle then data.EquippedTitle = "" end
+		if not data.OwnedSounds then data.OwnedSounds = {"Default"} end
+		if not data.EquippedSound then data.EquippedSound = "Default" end
 		self.PlayerData[player.UserId] = data
 	else
 		self.PlayerData[player.UserId] = getDefaultData()
@@ -142,7 +158,7 @@ function PlayerDataManager:AddWin(player, coinsEarned)
 		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
 	end)
 
-	self:SaveData(player)
+	self:DebouncedSave(player)
 end
 
 function PlayerDataManager:AddCoins(player, amount)
@@ -159,7 +175,7 @@ function PlayerDataManager:AddCoins(player, amount)
 		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
 	end)
 
-	self:SaveData(player)
+	self:DebouncedSave(player)
 end
 
 function PlayerDataManager:AddLoss(player, coinsEarned)
@@ -183,7 +199,7 @@ function PlayerDataManager:AddLoss(player, coinsEarned)
 		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
 	end)
 
-	self:SaveData(player)
+	self:DebouncedSave(player)
 end
 
 function PlayerDataManager:UpdateHighestSequence(player, sequenceLength)
@@ -192,7 +208,7 @@ function PlayerDataManager:UpdateHighestSequence(player, sequenceLength)
 
 	if sequenceLength > data.HighestSequence then
 		data.HighestSequence = sequenceLength
-		self:SaveData(player)
+		self:DebouncedSave(player)
 	end
 end
 
@@ -248,8 +264,8 @@ function PlayerDataManager:UpdateIQ(winner, loser)
 		syncStat(IQOrderedStore, loser.UserId,  loserData.IQ)
 	end)
 
-	self:SaveData(winner)
-	self:SaveData(loser)
+	self:DebouncedSave(winner)
+	self:DebouncedSave(loser)
 end
 
 local function isTitleOwned(ownedList, key)
@@ -273,7 +289,7 @@ function PlayerDataManager:BuyTitle(player, titleKey)
 
 	self:AddCoins(player, -title.Price)
 	table.insert(data.OwnedTitles, titleKey)
-	self:SaveData(player)
+	self:DebouncedSave(player)
 	return true, "Purchased"
 end
 
@@ -288,7 +304,42 @@ function PlayerDataManager:EquipTitle(player, titleKey)
 	if player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("EquippedTitle") then
 		player.leaderstats.EquippedTitle.Value = titleKey
 	end
-	self:SaveData(player)
+	self:DebouncedSave(player)
+end
+
+local function isSoundOwned(ownedList, key)
+	for _, k in ipairs(ownedList) do
+		if k == key then return true end
+	end
+	return false
+end
+
+function PlayerDataManager:BuySound(player, soundKey)
+	local SoundConfig = require(game.ReplicatedStorage:WaitForChild("SoundConfig"))
+	local pack = SoundConfig.Packs[soundKey]
+	if not pack then return false, "Invalid sound" end
+
+	local data = self.PlayerData[player.UserId]
+	if not data then return false, "No data" end
+
+	if isSoundOwned(data.OwnedSounds, soundKey) then return false, "Already owned" end
+
+	if data.Coins < pack.Price then return false, "Not enough coins" end
+
+	self:AddCoins(player, -pack.Price)
+	table.insert(data.OwnedSounds, soundKey)
+	self:DebouncedSave(player)
+	return true, "Purchased"
+end
+
+function PlayerDataManager:EquipSound(player, soundKey)
+	local data = self.PlayerData[player.UserId]
+	if not data then return end
+
+	if soundKey ~= "Default" and not isSoundOwned(data.OwnedSounds, soundKey) then return end
+
+	data.EquippedSound = soundKey
+	self:DebouncedSave(player)
 end
 
 -- Initialize
@@ -297,6 +348,10 @@ game.Players.PlayerAdded:Connect(function(player)
 end)
 
 game.Players.PlayerRemoving:Connect(function(player)
+	if pendingSaves[player.UserId] then
+		task.cancel(pendingSaves[player.UserId])
+		pendingSaves[player.UserId] = nil
+	end
 	PlayerDataManager:SaveData(player)
 	PlayerDataManager.PlayerData[player.UserId] = nil
 end)

@@ -7,6 +7,7 @@ local player            = Players.LocalPlayer
 
 local GameConfig  = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local ThemeConfig = require(ReplicatedStorage:WaitForChild("ThemeConfig"))
+local SoundConfig = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 
 -- Remote Events
 local remoteEvents          = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -20,9 +21,13 @@ local showGameUIEvent       = remoteEvents:WaitForChild("ShowGameUI")
 local sequenceFeedbackEvent = remoteEvents:WaitForChild("SequenceFeedback")
 local updateTimerEvent      = remoteEvents:WaitForChild("UpdateTimer")
 local themeDataEvent        = remoteEvents:WaitForChild("ThemeData")
+local soundDataEvent        = remoteEvents:WaitForChild("SoundData")
 
 -- Theme state
 local currentTheme = ThemeConfig.Themes["Default"]
+
+-- Sound pack state (independent of theme)
+local equippedSoundPack = SoundConfig.Packs["Default"]
 
 -- ── Sounds ──────────────────────────────────────────────────────────────────
 local sequenceSounds = ReplicatedStorage:WaitForChild("SequenceSounds")
@@ -48,10 +53,25 @@ local correctSound = Instance.new("Sound"); correctSound.Parent = camera
 local wrongSound   = Instance.new("Sound"); wrongSound.Parent   = camera
 
 local function applyThemeSounds(theme)
+	-- Only apply theme sounds if no custom sound pack is equipped
+	if equippedSoundPack and equippedSoundPack.Click ~= nil then return end
 	local s = theme and theme.Sounds
 	clickSound.SoundId   = (s and s.Click   or "")
 	correctSound.SoundId = (s and s.Correct or "")
 	wrongSound.SoundId   = (s and s.Wrong   or "")
+end
+
+local function applySoundPack(pack)
+	equippedSoundPack = pack
+	if pack and pack.Click ~= nil then
+		-- Sound pack overrides theme sounds
+		clickSound.SoundId   = pack.Click   or ""
+		correctSound.SoundId = pack.Correct or ""
+		wrongSound.SoundId   = pack.Wrong   or ""
+	else
+		-- Default pack: fall back to current theme sounds
+		applyThemeSounds(currentTheme)
+	end
 end
 
 local function playClickSound(position)
@@ -277,6 +297,12 @@ themeChangedEvent.Event:Connect(ApplyTheme)
 -- Apply equipped theme when server sends data on join
 themeDataEvent.OnClientEvent:Connect(function(ownedThemes, equippedTheme)
 	ApplyTheme(equippedTheme)
+end)
+
+-- Apply equipped sound pack when server sends data on join / after purchase
+soundDataEvent.OnClientEvent:Connect(function(ownedSounds, equippedSound)
+	local pack = SoundConfig.Packs[equippedSound] or SoundConfig.Packs["Default"]
+	applySoundPack(pack)
 end)
 
 -- ══════════════════════════════════════════════════════════════════════════════

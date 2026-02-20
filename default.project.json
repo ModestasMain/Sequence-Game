@@ -47,6 +47,15 @@
         },
         "TitleData": {
           "$className": "RemoteEvent"
+        },
+        "SoundData": {
+          "$className": "RemoteEvent"
+        },
+        "BuySound": {
+          "$className": "RemoteEvent"
+        },
+        "EquipSound": {
+          "$className": "RemoteEvent"
         }
       }
     },
