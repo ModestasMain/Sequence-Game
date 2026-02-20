@@ -96,15 +96,21 @@ function SoloSession:Start()
 
 	print("[Solo] Game starting for " .. self.Player.Name)
 
-	-- Freeze player in place
+	-- Position player on the left pad then freeze them
 	if self.Player.Character then
+		local hrp = self.Player.Character:FindFirstChild("HumanoidRootPart")
+
+		if hrp and self.Platform and self.Platform.LeftPart then
+			local lp = self.Platform.LeftPart
+			hrp.CFrame = CFrame.new(lp.Position + Vector3.new(0, 3, 0))
+		end
+
 		local humanoid = self.Player.Character:FindFirstChild("Humanoid")
 		if humanoid then
 			humanoid.WalkSpeed = 0
 			humanoid.JumpPower = 0
 			humanoid.JumpHeight = 0
 		end
-		local hrp = self.Player.Character:FindFirstChild("HumanoidRootPart")
 		if hrp then
 			hrp.Anchored = true
 		end
@@ -203,7 +209,7 @@ function SoloSession:HandleInput(position)
 			if lp then
 				lp:ShowFeedback(true)
 			end
-			task.wait(1.5)
+			task.wait(0.3)
 			self:NextRound()
 		end
 	else
@@ -272,16 +278,19 @@ function SoloSession:EndGame(forced)
 	self.Active = false
 	self:StopTimer()
 
+	-- Reset platform immediately so the table stops showing gameplay
+	if self.Platform then
+		self.Platform:Reset()
+		self.Platform = nil
+	end
+
+	-- Player reset/left — no result screen needed, they already respawned
 	if forced then
-		PlayerDataManager:AddLoss(self.Player, 0)
+		SoloGameManager.ActiveGames[self] = nil
+		return
 	end
 
 	print("[Solo] Game over for " .. self.Player.Name .. " - Reached sequence: " .. self.SequenceLength)
-
-	local lp = self:LP()
-	if lp then
-		lp:UpdateStatus("Game Over! Reached sequence " .. self.SequenceLength, Color3.fromRGB(255, 220, 80))
-	end
 
 	-- Show result
 	gameResultEvent:FireClient(self.Player, false, self.SequenceLength)
@@ -303,11 +312,6 @@ function SoloSession:EndGame(forced)
 		if hrp then
 			hrp.Anchored = false
 		end
-	end
-
-	-- Reset platform (also calls LivePreview:Hide())
-	if self.Platform then
-		self.Platform:Reset()
 	end
 
 	-- Remove from active games

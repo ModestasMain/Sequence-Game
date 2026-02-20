@@ -342,7 +342,7 @@ function ShowFeedback(isCorrect)
 		if wrongSound.SoundId ~= "" then wrongSound:Play() end
 	end
 
-	task.wait(1)
+	task.wait(isCorrect and 0.2 or 0.8)
 	for _, button in pairs(gridButtons) do
 		button.BackgroundColor3 = currentTheme.Colors.Square
 	end

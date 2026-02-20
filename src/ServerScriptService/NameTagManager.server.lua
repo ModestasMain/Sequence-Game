@@ -16,7 +16,6 @@ local COL_STREAK = Color3.fromRGB(255, 160, 30)   -- orange
 local COL_WINS   = Color3.fromRGB(255, 210, 0)    -- gold
 local COL_IQ     = Color3.fromRGB(80, 200, 255)   -- cyan
 local COL_NAME   = Color3.fromRGB(255, 255, 255)  -- white
-local COL_RANK   = Color3.fromRGB(170, 170, 170)  -- grey
 
 -- ── Helper: TextLabel with scale-based size/position ──────────────────────────
 local function label(parent, props)
@@ -61,48 +60,47 @@ local function createTag(player, character)
 	gui.Name         = "NameTag"
 	gui.Adornee      = head
 	gui.StudsOffset  = Vector3.new(0, 2.5, 0)
-	gui.Size         = UDim2.new(STUD_W, 0, STUD_H, 0)   -- studs, not pixels
+	gui.Size         = UDim2.new(STUD_W, 0, STUD_H, 0)
 	gui.AlwaysOnTop  = true
 	gui.ResetOnSpawn = false
 	gui.Parent       = head
 
 	local root = Instance.new("Frame")
-	root.Size  = UDim2.new(1, 0, 1, 0)
+	root.Size                   = UDim2.new(1, 0, 1, 0)
 	root.BackgroundTransparency = 1
-	root.Parent = gui
+	root.Parent                 = gui
 
 	-- ── Row 1 · Stats: 🔥 streak  🏆 wins  🧠 IQ ─────────────────────────────
 	--   Y spans 0.02 → 0.32  (30% of height)
-	--   Six elements across full width using scale X positions.
 
-	label(root, { text = "🔥",  size = UDim2.new(0.10, 0, 0.28, 0), pos = UDim2.new(0.01, 0, 0.02, 0) })
+	label(root, { text = "🔥", size = UDim2.new(0.10, 0, 0.28, 0), pos = UDim2.new(0.01, 0, 0.02, 0) })
 
 	local streakNum = label(root, {
 		text   = tostring(streakVal and streakVal.Value or 0),
 		size   = UDim2.new(0.17, 0, 0.22, 0),
 		pos    = UDim2.new(0.12, 0, 0.05, 0),
 		color  = COL_STREAK,
-		stroke = 0.4,
+		stroke = 0,
 	})
 
-	label(root, { text = "🏆",  size = UDim2.new(0.09, 0, 0.28, 0), pos = UDim2.new(0.35, 0, 0.02, 0) })
+	label(root, { text = "🏆", size = UDim2.new(0.09, 0, 0.28, 0), pos = UDim2.new(0.35, 0, 0.02, 0) })
 
 	local winsNum = label(root, {
 		text   = tostring(winsVal and winsVal.Value or 0),
 		size   = UDim2.new(0.14, 0, 0.22, 0),
 		pos    = UDim2.new(0.45, 0, 0.05, 0),
 		color  = COL_WINS,
-		stroke = 0.4,
+		stroke = 0,
 	})
 
-	label(root, { text = "🧠",  size = UDim2.new(0.09, 0, 0.28, 0), pos = UDim2.new(0.65, 0, 0.02, 0) })
+	label(root, { text = "🧠", size = UDim2.new(0.09, 0, 0.28, 0), pos = UDim2.new(0.65, 0, 0.02, 0) })
 
 	local iqNum = label(root, {
 		text   = tostring(iqVal and iqVal.Value or 100),
 		size   = UDim2.new(0.20, 0, 0.22, 0),
 		pos    = UDim2.new(0.75, 0, 0.05, 0),
 		color  = COL_IQ,
-		stroke = 0.4,
+		stroke = 0,
 	})
 
 	-- ── Row 2 · Player name ────────────────────────────────────────────────────
@@ -115,7 +113,7 @@ local function createTag(player, character)
 		stroke = 0,
 	})
 
-	-- ── Row 3 · Title (IQ-based or equipped cosmetic) ──────────────────────────
+	-- ── Row 3 · Title ──────────────────────────────────────────────────────────
 	--   Y spans 0.75 → 0.97  (22% of height)
 	local initTitleText, initTitleColor = TitleConfig.GetTitle(
 		iqVal and iqVal.Value or 100,
@@ -126,14 +124,14 @@ local function createTag(player, character)
 		size   = UDim2.new(0.90, 0, 0.22, 0),
 		pos    = UDim2.new(0.05, 0, 0.75, 0),
 		color  = initTitleColor,
-		font   = Enum.Font.Gotham,
+		font   = Enum.Font.GothamBold,
+		stroke = 0,
 	})
 
 	-- ── Live updates ───────────────────────────────────────────────────────────
 	if winsVal   then winsVal.Changed:Connect(  function(v) winsNum.Text   = tostring(v) end) end
 	if streakVal then streakVal.Changed:Connect(function(v) streakNum.Text = tostring(v) end) end
 
-	-- IQ change: update number AND title (if not using a cosmetic title)
 	if iqVal then iqVal.Changed:Connect(function(v)
 		iqNum.Text = tostring(v)
 		local equipped = titleVal and titleVal.Value or ""
@@ -142,7 +140,6 @@ local function createTag(player, character)
 		rankLabel.TextColor3 = c
 	end) end
 
-	-- Equipped title change: update title immediately
 	if titleVal then titleVal.Changed:Connect(function(v)
 		local iq = iqVal and iqVal.Value or 100
 		local t, c = TitleConfig.GetTitle(iq, v)

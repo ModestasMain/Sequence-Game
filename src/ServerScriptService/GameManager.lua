@@ -111,7 +111,7 @@ function GameSession:Start()
 		Players.PlayerRemoving:Connect(function(leavingPlayer)
 			if leavingPlayer == player and self.Active then
 				print(player.Name .. " left the game!")
-				self:EndGame(player)
+				self:EndGame(player, true)
 			end
 		end)
 
@@ -122,7 +122,7 @@ function GameSession:Start()
 				humanoid.Died:Connect(function()
 					if self.Active then
 						print(player.Name .. " died!")
-						self:EndGame(player)
+						self:EndGame(player, true)
 					end
 				end)
 			end
@@ -132,7 +132,7 @@ function GameSession:Start()
 		player.CharacterAdded:Connect(function()
 			if self.Active then
 				print(player.Name .. " reset/respawned!")
-				self:EndGame(player)
+				self:EndGame(player, true)
 			end
 		end)
 	end
@@ -418,12 +418,18 @@ function GameSession:HandleWrongInput(player)
 	end
 end
 
-function GameSession:EndGame(loser)
+function GameSession:EndGame(loser, forced)
 	if not self.Active then return end
 	self.Active = false
 
 	-- Stop any active timer
 	self:StopTimer()
+
+	-- Reset platform immediately so the table stops showing gameplay
+	if self.Platform then
+		self.Platform:Reset()
+		self.Platform = nil
+	end
 
 	-- Determine winner
 	local winner = nil
@@ -450,20 +456,21 @@ function GameSession:EndGame(loser)
 		PlayerDataManager:UpdateIQ(winner, loser)
 	end
 
-	-- Update live preview to show game over
-	local lp = self:LP()
-	if lp then
-		lp:UpdateStatus("Game Over! " .. (winner and winner.Name or "?") .. " wins!", Color3.fromRGB(255, 220, 80))
+	if forced then
+		-- Player left/reset mid-game: notify winner instantly, short wait
+		if winner then
+			gameResultEvent:FireClient(winner, true, self.SequenceLength)
+		end
+		task.wait(2)
+	else
+		-- Natural game end: notify both players
+		for _, player in ipairs(self.Players) do
+			local won = (player == winner)
+			gameResultEvent:FireClient(player, won, self.SequenceLength)
+		end
+		task.wait(5)
 	end
 
-	-- Notify players
-	for _, player in ipairs(self.Players) do
-		local won = (player == winner)
-		gameResultEvent:FireClient(player, won, self.SequenceLength)
-	end
-
-	-- Cleanup
-	task.wait(5)
 	self:Cleanup()
 end
 
@@ -500,11 +507,6 @@ function GameSession:Cleanup()
 				player.Character.HumanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(0, 5, 0)
 			end
 		end
-	end
-
-	-- Reset platform (also calls LivePreview:Hide())
-	if self.Platform then
-		self.Platform:Reset()
 	end
 
 	-- Remove from active games
