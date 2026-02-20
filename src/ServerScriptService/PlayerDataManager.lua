@@ -4,6 +4,17 @@
 local DataStoreService = game:GetService("DataStoreService")
 local PlayerDataStore = DataStoreService:GetDataStore("PlayerStats_v1")
 
+-- Ordered stores for leaderboard ranking (must match keys in LeaderboardManager)
+local WinsOrderedStore  = DataStoreService:GetOrderedDataStore("Leaderboard_Wins")
+local IQOrderedStore    = DataStoreService:GetOrderedDataStore("Leaderboard_IQ")
+local CoinsOrderedStore = DataStoreService:GetOrderedDataStore("Leaderboard_Coins")
+
+local function syncStat(store, userId, value)
+	pcall(function()
+		store:SetAsync(tostring(userId), math.max(0, math.floor(value)))
+	end)
+end
+
 local PlayerDataManager = {}
 PlayerDataManager.PlayerData = {} -- Cache for active players
 
@@ -41,6 +52,14 @@ function PlayerDataManager:LoadData(player)
 		self.PlayerData[player.UserId] = getDefaultData()
 		warn("Could not load data for " .. player.Name .. ", using defaults")
 	end
+
+	-- Sync current values to ordered leaderboard stores
+	task.spawn(function()
+		local data = self.PlayerData[player.UserId]
+		syncStat(WinsOrderedStore,  player.UserId, data.Wins)
+		syncStat(IQOrderedStore,    player.UserId, data.IQ or 100)
+		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
+	end)
 
 	-- Create leaderstats
 	self:CreateLeaderstats(player)
@@ -109,6 +128,11 @@ function PlayerDataManager:AddWin(player, coinsEarned)
 		end
 	end
 
+	task.spawn(function()
+		syncStat(WinsOrderedStore,  player.UserId, data.Wins)
+		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
+	end)
+
 	self:SaveData(player)
 end
 
@@ -121,6 +145,10 @@ function PlayerDataManager:AddCoins(player, amount)
 	if player:FindFirstChild("leaderstats") then
 		player.leaderstats.Coins.Value = data.Coins
 	end
+
+	task.spawn(function()
+		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
+	end)
 
 	self:SaveData(player)
 end
@@ -141,6 +169,10 @@ function PlayerDataManager:AddLoss(player, coinsEarned)
 			player.leaderstats.Streak.Value = 0
 		end
 	end
+
+	task.spawn(function()
+		syncStat(CoinsOrderedStore, player.UserId, data.Coins)
+	end)
 
 	self:SaveData(player)
 end
@@ -201,6 +233,11 @@ function PlayerDataManager:UpdateIQ(winner, loser)
 	print(string.format("IQ Update: %s (%d → %d, %+d) defeated %s (%d → %d, %d)",
 		winner.Name, winnerIQ, winnerData.IQ, winnerGain,
 		loser.Name, loserIQ, loserData.IQ, loserLoss))
+
+	task.spawn(function()
+		syncStat(IQOrderedStore, winner.UserId, winnerData.IQ)
+		syncStat(IQOrderedStore, loser.UserId,  loserData.IQ)
+	end)
 
 	self:SaveData(winner)
 	self:SaveData(loser)
