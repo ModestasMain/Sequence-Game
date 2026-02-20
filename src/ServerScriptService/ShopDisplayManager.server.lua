@@ -30,7 +30,7 @@ local SECTION_GAP    = 16   -- extra gap between titles and themes sections
 -- ── Build display list from anchor ────────────────────────────────────────────
 local TITLE_KEYS = { "BrainRot", "TouchGrass", "TryingMyBest", "TheThinker", "TheVeteran", "SequenceKing", "PatternGod", "TheChosenOne" }
 local THEME_KEYS = { "Ocean", "Forest", "Neon", "Sunset", "Ice", "Candy", "Lava", "Galaxy" }
-local SOUND_KEYS = { "Piano", "Osu", "Typewriter", "Brainrot", "VineBoom" }
+local SOUND_KEYS = { "Piano", "Osu", "Typewriter", "VineBoom" }
 
 local DISPLAYS = {}
 local zOffset = 0

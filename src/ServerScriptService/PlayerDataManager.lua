@@ -16,7 +16,8 @@ local function syncStat(store, userId, value)
 end
 
 local PlayerDataManager = {}
-PlayerDataManager.PlayerData = {} -- Cache for active players
+PlayerDataManager.PlayerData  = {} -- Cache for active players
+PlayerDataManager.OnDataLoaded = Instance.new("BindableEvent") -- Fires when a player's data is ready
 
 -- Debounced save: collapses rapid successive saves into one write
 local pendingSaves = {}
@@ -83,6 +84,9 @@ function PlayerDataManager:LoadData(player)
 
 	-- Create leaderstats
 	self:CreateLeaderstats(player)
+
+	-- Signal that this player's data is in cache and ready
+	self.OnDataLoaded:Fire(player)
 end
 
 -- Save player data
@@ -356,9 +360,12 @@ game.Players.PlayerRemoving:Connect(function(player)
 	PlayerDataManager.PlayerData[player.UserId] = nil
 end)
 
--- Load data for any players already in game (in case they joined before this module loaded)
-for _, player in ipairs(game.Players:GetPlayers()) do
-	PlayerDataManager:LoadData(player)
-end
+-- Load data for any players already in game.
+-- task.defer ensures all other scripts have connected to OnDataLoaded before we fire it.
+task.defer(function()
+	for _, player in ipairs(game.Players:GetPlayers()) do
+		PlayerDataManager:LoadData(player)
+	end
+end)
 
 return PlayerDataManager

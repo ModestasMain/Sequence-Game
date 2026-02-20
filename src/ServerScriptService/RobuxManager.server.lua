@@ -128,7 +128,7 @@ end)
 -- ── On join: grant any passes the player already owns ─────────────────────────
 
 local function checkPassesOnJoin(player)
-	task.wait(3)  -- wait for PlayerDataManager to load data
+	-- PlayerDataManager.OnDataLoaded already guarantees data is in cache
 	local data = PlayerDataManager.PlayerData[player.UserId]
 	if not data then return end
 
@@ -154,10 +154,16 @@ local function checkPassesOnJoin(player)
 	end
 end
 
-game.Players.PlayerAdded:Connect(checkPassesOnJoin)
-
-for _, player in ipairs(game.Players:GetPlayers()) do
+-- Run pass checks only after data is confirmed loaded
+PlayerDataManager.OnDataLoaded.Event:Connect(function(player)
 	task.spawn(checkPassesOnJoin, player)
+end)
+
+-- Handle any players already in-game when this script loads
+for _, player in ipairs(game.Players:GetPlayers()) do
+	if PlayerDataManager.PlayerData[player.UserId] then
+		task.spawn(checkPassesOnJoin, player)
+	end
 end
 
 print("[Robux] RobuxManager loaded")

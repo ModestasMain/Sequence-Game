@@ -7,10 +7,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
 local SoundConfig       = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 
-local remoteEvents    = ReplicatedStorage:WaitForChild("RemoteEvents")
-local soundDataEvent  = remoteEvents:WaitForChild("SoundData")
-local buySoundEvent   = remoteEvents:WaitForChild("BuySound")
-local equipSoundEvent = remoteEvents:WaitForChild("EquipSound")
+local remoteEvents       = ReplicatedStorage:WaitForChild("RemoteEvents")
+local soundDataEvent     = remoteEvents:WaitForChild("SoundData")
+local buySoundEvent      = remoteEvents:WaitForChild("BuySound")
+local equipSoundEvent    = remoteEvents:WaitForChild("EquipSound")
+local requestShopData    = remoteEvents:WaitForChild("RequestShopData")
 
 local function sendSoundData(player)
 	local data = PlayerDataManager.PlayerData[player.UserId]
@@ -18,10 +19,11 @@ local function sendSoundData(player)
 	soundDataEvent:FireClient(player, data.OwnedSounds, data.EquippedSound)
 end
 
-game.Players.PlayerAdded:Connect(function(player)
-	task.wait(2)
-	sendSoundData(player)
-end)
+-- Send sound data as soon as PlayerDataManager signals data is ready
+PlayerDataManager.OnDataLoaded.Event:Connect(sendSoundData)
+
+-- Resend when client requests a shop refresh (e.g. on shop open)
+requestShopData.OnServerEvent:Connect(sendSoundData)
 
 local function isSoundOwned(data, key)
 	for _, k in ipairs(data.OwnedSounds) do
@@ -40,6 +42,8 @@ buySoundEvent.OnServerEvent:Connect(function(player, soundKey)
 	if not isSoundOwned(data, soundKey) then
 		if data.Coins < pack.Price then
 			print("[Sound] " .. player.Name .. " can't afford: " .. soundKey)
+			-- Resync so client reflects true state
+			soundDataEvent:FireClient(player, data.OwnedSounds, data.EquippedSound)
 			return
 		end
 		-- Update coins in memory immediately

@@ -5,10 +5,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ThemeConfig = require(ReplicatedStorage:WaitForChild("ThemeConfig"))
 local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
 
-local remoteEvents  = ReplicatedStorage:WaitForChild("RemoteEvents")
-local buyThemeEvent    = remoteEvents:WaitForChild("BuyTheme")
-local equipThemeEvent  = remoteEvents:WaitForChild("EquipTheme")
-local themeDataEvent   = remoteEvents:WaitForChild("ThemeData")
+local remoteEvents        = ReplicatedStorage:WaitForChild("RemoteEvents")
+local buyThemeEvent       = remoteEvents:WaitForChild("BuyTheme")
+local equipThemeEvent     = remoteEvents:WaitForChild("EquipTheme")
+local themeDataEvent      = remoteEvents:WaitForChild("ThemeData")
+local requestShopData     = remoteEvents:WaitForChild("RequestShopData")
 
 local function isOwned(ownedThemes, key)
 	for _, k in ipairs(ownedThemes) do
@@ -23,11 +24,11 @@ local function sendThemeData(player)
 	themeDataEvent:FireClient(player, data.OwnedThemes, data.EquippedTheme)
 end
 
--- Send theme data on join (wait for PlayerDataManager to load)
-game.Players.PlayerAdded:Connect(function(player)
-	task.wait(2)
-	sendThemeData(player)
-end)
+-- Send theme data as soon as PlayerDataManager signals data is ready
+PlayerDataManager.OnDataLoaded.Event:Connect(sendThemeData)
+
+-- Resend when client requests a shop refresh (e.g. on shop open)
+requestShopData.OnServerEvent:Connect(sendThemeData)
 
 -- Handle buy request
 buyThemeEvent.OnServerEvent:Connect(function(player, themeKey)
@@ -37,8 +38,11 @@ buyThemeEvent.OnServerEvent:Connect(function(player, themeKey)
 	local data = PlayerDataManager.PlayerData[player.UserId]
 	if not data then return end
 
-	-- Already owned
-	if isOwned(data.OwnedThemes, themeKey) then return end
+	-- Already owned — resync client so it shows correct state
+	if isOwned(data.OwnedThemes, themeKey) then
+		sendThemeData(player)
+		return
+	end
 
 	-- Check coins
 	if data.Coins < theme.Price then
