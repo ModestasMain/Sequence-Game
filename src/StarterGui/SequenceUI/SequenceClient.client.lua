@@ -29,12 +29,37 @@ local sequenceSounds = ReplicatedStorage:WaitForChild("SequenceSounds")
 local soundInstances = {}
 local camera         = workspace.CurrentCamera
 
+-- Original per-position sounds (used by Default theme)
 for i = 1, 9 do
 	local sound = sequenceSounds:FindFirstChild("Sequence" .. i)
 	if sound then
 		local clone = sound:Clone()
 		clone.Parent = camera
 		soundInstances[i] = clone
+	end
+end
+
+-- Theme soundpack: one click sound pitched per grid position, plus correct/wrong stings
+-- Pitch multipliers for positions 1-9 — roughly a major scale
+local PITCH_MAP = {0.70, 0.79, 0.89, 1.00, 1.12, 1.26, 1.41, 1.59, 1.78}
+
+local clickSound   = Instance.new("Sound"); clickSound.Parent   = camera
+local correctSound = Instance.new("Sound"); correctSound.Parent = camera
+local wrongSound   = Instance.new("Sound"); wrongSound.Parent   = camera
+
+local function applyThemeSounds(theme)
+	local s = theme and theme.Sounds
+	clickSound.SoundId   = (s and s.Click   or "")
+	correctSound.SoundId = (s and s.Correct or "")
+	wrongSound.SoundId   = (s and s.Wrong   or "")
+end
+
+local function playClickSound(position)
+	if clickSound.SoundId ~= "" then
+		clickSound.PlaybackSpeed = PITCH_MAP[position] or 1
+		clickSound:Play()
+	elseif soundInstances[position] then
+		soundInstances[position]:Play()
 	end
 end
 
@@ -156,9 +181,13 @@ for row = 1, GameConfig.GRID_SIZE do
 		btn.Name             = "Square" .. pos
 		btn.BackgroundColor3 = currentTheme.Colors.Square
 		btn.BorderSizePixel  = 0
-		btn.Text             = ""
 		btn.AutoButtonColor  = false
 		btn.LayoutOrder      = pos
+		btn.Text             = currentTheme.SquareIcon or ""
+		btn.TextColor3       = currentTheme.Colors.Highlight
+		btn.TextTransparency = (currentTheme.SquareIcon and currentTheme.SquareIcon ~= "") and 0.3 or 1
+		btn.TextScaled       = true
+		btn.Font             = Enum.Font.GothamBold
 		btn.Parent           = gridFrame
 
 		local btnCorner = Instance.new("UICorner")
@@ -214,11 +243,22 @@ local function ApplyTheme(themeKey)
 	if not theme then return end
 	currentTheme = theme
 
-	-- Static panel + square defaults
+	-- Panel + square colors
 	mainFrame.BackgroundColor3 = theme.Colors.Panel
 	for _, btn in pairs(gridButtons) do
 		btn.BackgroundColor3 = theme.Colors.Square
 	end
+
+	-- Square icon
+	local hasIcon = theme.SquareIcon and theme.SquareIcon ~= ""
+	for _, btn in pairs(gridButtons) do
+		btn.Text             = theme.SquareIcon or ""
+		btn.TextColor3       = theme.Colors.Highlight
+		btn.TextTransparency = hasIcon and 0.3 or 1
+	end
+
+	-- Soundpack
+	applyThemeSounds(theme)
 
 	-- Recolor hearts based on current lives
 	for i, h in ipairs(p1HeartLabels) do
@@ -268,7 +308,7 @@ function ShowSequence(sequence, shouldShowAnimation)
 			task.wait(GameConfig.SEQUENCE_GAP_TIME)
 			if gridButtons[position] then
 				gridButtons[position].BackgroundColor3 = currentTheme.Colors.Highlight
-				if soundInstances[position] then soundInstances[position]:Play() end
+				playClickSound(position)
 			end
 			task.wait(GameConfig.SEQUENCE_DISPLAY_TIME)
 			if gridButtons[position] then
@@ -292,8 +332,15 @@ function ShowFeedback(isCorrect)
 	for _, button in pairs(gridButtons) do
 		button.BackgroundColor3 = color
 	end
-	statusLabel.Text      = isCorrect and "Correct! ✓" or "Wrong! Try Again! ✗"
+	statusLabel.Text       = isCorrect and "Correct! ✓" or "Wrong! Try Again! ✗"
 	statusLabel.TextColor3 = color
+
+	-- Play theme correct/wrong sound
+	if isCorrect then
+		if correctSound.SoundId ~= "" then correctSound:Play() end
+	else
+		if wrongSound.SoundId ~= "" then wrongSound:Play() end
+	end
 
 	task.wait(1)
 	for _, button in pairs(gridButtons) do
@@ -321,7 +368,7 @@ function OnSquareClick(position)
 		end)
 	end
 
-	if soundInstances[position] then soundInstances[position]:Play() end
+	playClickSound(position)
 
 	table.insert(playerInputs, position)
 	playerInputEvent:FireServer(position)

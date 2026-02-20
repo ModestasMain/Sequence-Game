@@ -367,7 +367,10 @@ function SoloGameManager:StartGame(player, platform)
 	-- Clean up connections after game ends naturally
 	task.spawn(function()
 		session:Start()
-		task.wait(5)
+		-- Wait until the session has actually ended before disconnecting
+		while session.Active do
+			task.wait(1)
+		end
 		cleanup()
 	end)
 end

@@ -4,6 +4,8 @@
 -- All child labels use scale positions/sizes (0–1 relative to the gui).
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TitleConfig = require(ReplicatedStorage:WaitForChild("TitleConfig"))
 
 -- BillboardGui size in world studs
 local STUD_W = 5
@@ -46,9 +48,10 @@ local function createTag(player, character)
 	local leaderstats = player:WaitForChild("leaderstats", 15)
 	if not leaderstats then return end
 
-	local winsVal   = leaderstats:WaitForChild("Wins",   10)
-	local iqVal     = leaderstats:WaitForChild("IQ",     10)
-	local streakVal = leaderstats:WaitForChild("Streak", 10)
+	local winsVal   = leaderstats:WaitForChild("Wins",          10)
+	local iqVal     = leaderstats:WaitForChild("IQ",            10)
+	local streakVal = leaderstats:WaitForChild("Streak",        10)
+	local titleVal  = leaderstats:WaitForChild("EquippedTitle", 10)
 
 	local old = head:FindFirstChild("NameTag")
 	if old then old:Destroy() end
@@ -112,20 +115,40 @@ local function createTag(player, character)
 		stroke = 0,
 	})
 
-	-- ── Row 3 · Rank ───────────────────────────────────────────────────────────
+	-- ── Row 3 · Title (IQ-based or equipped cosmetic) ──────────────────────────
 	--   Y spans 0.75 → 0.97  (22% of height)
-	label(root, {
-		text   = "Player",
+	local initTitleText, initTitleColor = TitleConfig.GetTitle(
+		iqVal and iqVal.Value or 100,
+		titleVal and titleVal.Value or "")
+
+	local rankLabel = label(root, {
+		text   = initTitleText,
 		size   = UDim2.new(0.90, 0, 0.22, 0),
 		pos    = UDim2.new(0.05, 0, 0.75, 0),
-		color  = COL_RANK,
+		color  = initTitleColor,
 		font   = Enum.Font.Gotham,
 	})
 
 	-- ── Live updates ───────────────────────────────────────────────────────────
 	if winsVal   then winsVal.Changed:Connect(  function(v) winsNum.Text   = tostring(v) end) end
-	if iqVal     then iqVal.Changed:Connect(    function(v) iqNum.Text     = tostring(v) end) end
 	if streakVal then streakVal.Changed:Connect(function(v) streakNum.Text = tostring(v) end) end
+
+	-- IQ change: update number AND title (if not using a cosmetic title)
+	if iqVal then iqVal.Changed:Connect(function(v)
+		iqNum.Text = tostring(v)
+		local equipped = titleVal and titleVal.Value or ""
+		local t, c = TitleConfig.GetTitle(v, equipped)
+		rankLabel.Text       = t
+		rankLabel.TextColor3 = c
+	end) end
+
+	-- Equipped title change: update title immediately
+	if titleVal then titleVal.Changed:Connect(function(v)
+		local iq = iqVal and iqVal.Value or 100
+		local t, c = TitleConfig.GetTitle(iq, v)
+		rankLabel.Text       = t
+		rankLabel.TextColor3 = c
+	end) end
 end
 
 -- ── Wire up all players ───────────────────────────────────────────────────────

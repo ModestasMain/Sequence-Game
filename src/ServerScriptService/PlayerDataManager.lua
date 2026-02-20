@@ -31,6 +31,8 @@ local function getDefaultData()
 		LastDailyClaim = 0,
 		OwnedThemes = {"Default"},
 		EquippedTheme = "Default",
+		OwnedTitles = {},
+		EquippedTitle = "",  -- empty = use IQ auto-title
 	}
 end
 
@@ -47,6 +49,8 @@ function PlayerDataManager:LoadData(player)
 		if not data.LastDailyClaim then data.LastDailyClaim = 0 end
 		if not data.OwnedThemes then data.OwnedThemes = {"Default"} end
 		if not data.EquippedTheme then data.EquippedTheme = "Default" end
+		if not data.OwnedTitles then data.OwnedTitles = {} end
+		if not data.EquippedTitle then data.EquippedTitle = "" end
 		self.PlayerData[player.UserId] = data
 	else
 		self.PlayerData[player.UserId] = getDefaultData()
@@ -107,6 +111,11 @@ function PlayerDataManager:CreateLeaderstats(player)
 	streak.Name = "Streak"
 	streak.Value = data.Streak or 0
 	streak.Parent = leaderstats
+
+	local equippedTitle = Instance.new("StringValue")
+	equippedTitle.Name = "EquippedTitle"
+	equippedTitle.Value = data.EquippedTitle or ""
+	equippedTitle.Parent = leaderstats
 end
 
 -- Update player stats
@@ -241,6 +250,45 @@ function PlayerDataManager:UpdateIQ(winner, loser)
 
 	self:SaveData(winner)
 	self:SaveData(loser)
+end
+
+local function isTitleOwned(ownedList, key)
+	for _, k in ipairs(ownedList) do
+		if k == key then return true end
+	end
+	return false
+end
+
+function PlayerDataManager:BuyTitle(player, titleKey)
+	local TitleConfig = require(game.ReplicatedStorage:WaitForChild("TitleConfig"))
+	local title = TitleConfig.Titles[titleKey]
+	if not title then return false, "Invalid title" end
+
+	local data = self.PlayerData[player.UserId]
+	if not data then return false, "No data" end
+
+	if isTitleOwned(data.OwnedTitles, titleKey) then return false, "Already owned" end
+
+	if data.Coins < title.Price then return false, "Not enough coins" end
+
+	self:AddCoins(player, -title.Price)
+	table.insert(data.OwnedTitles, titleKey)
+	self:SaveData(player)
+	return true, "Purchased"
+end
+
+function PlayerDataManager:EquipTitle(player, titleKey)
+	local data = self.PlayerData[player.UserId]
+	if not data then return end
+
+	-- Empty string unequips (reverts to IQ-based title)
+	if titleKey ~= "" and not isTitleOwned(data.OwnedTitles, titleKey) then return end
+
+	data.EquippedTitle = titleKey
+	if player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("EquippedTitle") then
+		player.leaderstats.EquippedTitle.Value = titleKey
+	end
+	self:SaveData(player)
 end
 
 -- Initialize

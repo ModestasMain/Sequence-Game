@@ -38,6 +38,15 @@
         },
         "UpdateTimer": {
           "$className": "RemoteEvent"
+        },
+        "BuyTitle": {
+          "$className": "RemoteEvent"
+        },
+        "EquipTitle": {
+          "$className": "RemoteEvent"
+        },
+        "TitleData": {
+          "$className": "RemoteEvent"
         }
       }
     },
