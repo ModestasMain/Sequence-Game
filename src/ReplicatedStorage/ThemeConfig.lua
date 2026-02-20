@@ -36,11 +36,11 @@ ThemeConfig.Themes = {
 		},
 	},
 
-	-- ── TIER 1 (150 coins) ────────────────────────────────────────────────────
+	-- ── TIER 1 (400 coins) ────────────────────────────────────────────────────
 
 	Ocean = {
 		Name        = "Ocean",
-		Price       = 150,
+		Price       = 400,
 		SquareIcon  = "◇",   -- white diamond — water-drop/wave shape
 		Sounds = {
 			Click   = "",   -- search: "water drop" / "water drip" audio
@@ -60,7 +60,7 @@ ThemeConfig.Themes = {
 
 	Forest = {
 		Name        = "Forest",
-		Price       = 150,
+		Price       = 400,
 		SquareIcon  = "✿",   -- florette — leaf/flower shape
 		Sounds = {
 			Click   = "",   -- search: "wood knock" / "leaf rustle" audio
@@ -78,11 +78,11 @@ ThemeConfig.Themes = {
 		},
 	},
 
-	-- ── TIER 2 (200 coins) ────────────────────────────────────────────────────
+	-- ── TIER 2 (550 coins) ────────────────────────────────────────────────────
 
 	Neon = {
 		Name        = "Neon",
-		Price       = 200,
+		Price       = 550,
 		SquareIcon  = "✦",   -- four-pointed star — sharp/electric
 		Sounds = {
 			Click   = "",   -- search: "synth beep" / "electronic click" audio
@@ -102,7 +102,7 @@ ThemeConfig.Themes = {
 
 	Sunset = {
 		Name        = "Sunset",
-		Price       = 200,
+		Price       = 550,
 		SquareIcon  = "★",   -- classic star — sun/warmth
 		Sounds = {
 			Click   = "",   -- search: "marimba note" / "xylophone tap" audio
@@ -120,11 +120,11 @@ ThemeConfig.Themes = {
 		},
 	},
 
-	-- ── TIER 3 (300 coins) ────────────────────────────────────────────────────
+	-- ── TIER 3 (750 coins) ────────────────────────────────────────────────────
 
 	Ice = {
 		Name        = "Ice",
-		Price       = 300,
+		Price       = 750,
 		SquareIcon  = "❅",   -- tight snowflake — frost/crystal
 		Sounds = {
 			Click   = "",   -- search: "crystal ping" / "glass tap" audio
@@ -144,7 +144,7 @@ ThemeConfig.Themes = {
 
 	Candy = {
 		Name        = "Candy",
-		Price       = 300,
+		Price       = 750,
 		SquareIcon  = "❀",   -- white florette — sweet/bubblegum
 		Sounds = {
 			Click   = "",   -- search: "pop bubble" / "candy click" audio
@@ -162,11 +162,11 @@ ThemeConfig.Themes = {
 		},
 	},
 
-	-- ── TIER 4 (350-400 coins) ────────────────────────────────────────────────
+	-- ── TIER 4 (900-1200 coins) ──────────────────────────────────────────────
 
 	Lava = {
 		Name        = "Lava",
-		Price       = 350,
+		Price       = 900,
 		SquareIcon  = "✸",   -- heavy 8-pointed star — explosion/eruption
 		Sounds = {
 			Click   = "",   -- search: "fire crackle" / "ember pop" audio
@@ -186,7 +186,7 @@ ThemeConfig.Themes = {
 
 	Galaxy = {
 		Name        = "Galaxy",
-		Price       = 400,
+		Price       = 1200,
 		SquareIcon  = "◆",   -- black diamond — cosmic gem
 		Sounds = {
 			Click   = "",   -- search: "space blip" / "cosmic click" audio

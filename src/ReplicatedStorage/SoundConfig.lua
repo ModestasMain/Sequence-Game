@@ -25,57 +25,57 @@ SoundConfig.Packs = {
 		-- nil = use per-position SequenceSounds (original behaviour)
 		Click   = nil,
 		Correct = nil,
-		Wrong   = nil,
+		Wrong   = "rbxassetid://2979857617",  -- incorrect
 	},
 
 	-- ── TIER 1 (75 coins) ─────────────────────────────────────────────────────
 
 	Piano = {
 		Name        = "Piano",
-		Price       = 75,
+		Price       = 150,
 		Icon        = "🎹",
 		Color       = Color3.fromRGB(255, 220, 150),
 		Description = "Smooth piano key taps",
 		Click   = "rbxassetid://140142170634722",  -- piano note
 		Correct = "rbxassetid://140142170634722",  -- piano note (high pitch)
-		Wrong   = "rbxassetid://5044897021",        -- bruh
+		Wrong   = "rbxassetid://2979857617",  -- incorrect
 	},
 
 	Osu = {
 		Name        = "Osu!",
-		Price       = 75,
+		Price       = 150,
 		Icon        = "⭕",
 		Color       = Color3.fromRGB(255, 100, 200),
 		Description = "The iconic osu! hit circle sound",
 		Click   = "rbxassetid://7147454322",  -- osu! hitsound
 		Correct = "rbxassetid://7147454322",  -- same, high pitch
-		Wrong   = "rbxassetid://5044897021",  -- bruh
+		Wrong   = "rbxassetid://2979857617",  -- incorrect
 	},
 
 	-- ── TIER 2 (125 coins) ────────────────────────────────────────────────────
 
 	Typewriter = {
 		Name        = "Typewriter",
-		Price       = 125,
+		Price       = 250,
 		Icon        = "⌨️",
 		Color       = Color3.fromRGB(180, 220, 255),
 		Description = "Satisfying mechanical keyboard clicks",
 		Click   = "rbxassetid://88849202777032",  -- typewriter click
 		Correct = "rbxassetid://88849202777032",  -- same, high pitch
-		Wrong   = "rbxassetid://5044897021",       -- bruh
+		Wrong   = "rbxassetid://2979857617",  -- incorrect
 	},
 
 	-- ── TIER 3 (200 coins) ─────────────────────────────────────────────────────
 
 	VineBoom = {
 		Name        = "Vine Boom",
-		Price       = 200,
+		Price       = 400,
 		Icon        = "💥",
 		Color       = Color3.fromRGB(255, 80, 80),
 		Description = "Every click is a BOOM. You're welcome.",
 		Click   = "rbxassetid://7147226095",  -- vine boom (pitched per position)
 		Correct = "rbxassetid://7147484622",  -- vine boom HD (CORRECT)
-		Wrong   = "rbxassetid://5044897021",  -- bruh (WRONG)
+		Wrong   = "rbxassetid://5044897021",  -- bruh
 	},
 }
 

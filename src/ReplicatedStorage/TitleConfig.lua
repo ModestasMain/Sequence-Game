@@ -32,48 +32,48 @@ TitleConfig.Titles = {
 	-- ── Funny / Cheap ───────────────────────────────────────────────────────
 	BrainRot = {
 		Name  = "Brain Rot",
-		Price = 150,
+		Price = 300,
 		Color = Color3.fromRGB(120, 210, 100),
 	},
 	TouchGrass = {
 		Name  = "Touch Grass",
-		Price = 200,
+		Price = 400,
 		Color = Color3.fromRGB(80, 190, 80),
 	},
 	TryingMyBest = {
 		Name  = "Trying My Best",
-		Price = 250,
+		Price = 500,
 		Color = Color3.fromRGB(200, 200, 200),
 	},
 
 	-- ── Mid Tier ────────────────────────────────────────────────────────────
 	TheThinker = {
 		Name  = "The Thinker",
-		Price = 400,
+		Price = 700,
 		Color = Color3.fromRGB(100, 160, 255),
 	},
 	TheVeteran = {
 		Name  = "The Veteran",
-		Price = 500,
+		Price = 900,
 		Color = Color3.fromRGB(190, 150, 80),
 	},
 
 	-- ── Prestigious ─────────────────────────────────────────────────────────
 	SequenceKing = {
 		Name  = "Sequence King",
-		Price = 750,
+		Price = 1500,
 		Color = Color3.fromRGB(255, 215, 0),
 	},
 	PatternGod = {
 		Name  = "Pattern God",
-		Price = 900,
+		Price = 2000,
 		Color = Color3.fromRGB(0, 220, 255),
 	},
 
 	-- ── Ultra Rare ──────────────────────────────────────────────────────────
 	TheChosenOne = {
 		Name  = "The Chosen One",
-		Price = 1500,
+		Price = 3500,
 		Color = Color3.fromRGB(255, 240, 160),
 	},
 }
