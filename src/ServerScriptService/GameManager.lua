@@ -60,28 +60,7 @@ function GameSession:Start()
 
 	print("Game session starting...")
 
-	-- Keep players on their platform pads and make them face each other
-	if self.Platform and self.Platform.LeftPart and self.Platform.RightPart then
-		local leftPos = self.Platform.LeftPart.Position
-		local rightPos = self.Platform.RightPart.Position
-
-		-- Position players on their pads facing each other
-		for i, player in ipairs(self.Players) do
-			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				local hrp = player.Character.HumanoidRootPart
-
-				if i == 1 then
-					-- Player 1 on left pad, facing right
-					hrp.CFrame = CFrame.new(leftPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(-90), 0)
-				else
-					-- Player 2 on right pad, facing left
-					hrp.CFrame = CFrame.new(rightPos + Vector3.new(0, 2, 0)) * CFrame.Angles(0, math.rad(90), 0)
-				end
-			end
-		end
-	end
-
-	-- Lock both players in position
+	-- Lock both players in position (they are already standing on the correct pad from the join system)
 	for _, player in ipairs(self.Players) do
 		if player.Character then
 			local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -448,14 +427,12 @@ function GameSession:EndGame(loser, forced)
 		winnerStreak = preWinStreak + 1 -- This will be the streak after the win
 
 		winnerFinalCoins, _, winnerMultiplier = PlayerDataManager:AddWin(winner, GameConfig.WIN_COINS)
-		PlayerDataManager:UpdateHighestSequence(winner, self.SequenceLength)
 
 		-- Quest: win a 1v1 match
 		PlayerDataManager:UpdateQuestProgress(winner, "win_1v1", 1)
 	end
 
 	PlayerDataManager:AddLoss(loser, GameConfig.PARTICIPATION_COINS)
-	PlayerDataManager:UpdateHighestSequence(loser, self.SequenceLength)
 
 	-- Quest: play a 1v1 match (both players, non-forced games only)
 	if not forced then
