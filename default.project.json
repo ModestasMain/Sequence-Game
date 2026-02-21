@@ -59,6 +59,15 @@
         },
         "RequestShopData": {
           "$className": "RemoteEvent"
+        },
+        "QuestUpdate": {
+          "$className": "RemoteEvent"
+        },
+        "ClaimQuest": {
+          "$className": "RemoteEvent"
+        },
+        "RequestQuestData": {
+          "$className": "RemoteEvent"
         }
       }
     },
@@ -73,6 +82,10 @@
       "SequenceUI": {
         "$className": "ScreenGui",
         "$path": "src/StarterGui/SequenceUI"
+      },
+      "QuestUI": {
+        "$className": "ScreenGui",
+        "$path": "src/StarterGui/QuestUI"
       }
     },
     "StarterPlayer": {

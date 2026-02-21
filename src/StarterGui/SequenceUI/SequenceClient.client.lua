@@ -76,10 +76,14 @@ end
 
 local function playClickSound(position)
 	if clickSound.SoundId ~= "" then
-		clickSound.PlaybackSpeed = PITCH_MAP[position] or 1
+		-- Modulo so positions 10-25 (5x5 mode) still get a valid pitch
+		clickSound.PlaybackSpeed = PITCH_MAP[((position - 1) % #PITCH_MAP) + 1]
 		clickSound:Play()
-	elseif soundInstances[position] then
-		soundInstances[position]:Play()
+	else
+		-- Default per-position sounds only cover 1-9; cycle for higher positions
+		local fallbackIdx = ((position - 1) % 9) + 1
+		local si = soundInstances[position] or soundInstances[fallbackIdx]
+		if si then si:Play() end
 	end
 end
 
@@ -219,6 +223,55 @@ for row = 1, GameConfig.GRID_SIZE do
 		end)
 
 		gridButtons[pos] = btn
+	end
+end
+
+-- Rebuilds the button grid for the given grid size (3 or 5).
+-- Called each time ShowGameUI fires with show=true so 3x3 and 5x5 share the same UI.
+local function rebuildGrid(newGridSize)
+	-- Destroy existing buttons
+	for _, btn in pairs(gridButtons) do
+		btn:Destroy()
+	end
+	gridButtons = {}
+
+	-- Adjust UIGridLayout cell sizes to fill the square frame
+	if newGridSize == 5 then
+		gridLayout.CellSize    = UDim2.new(0.186, 0, 0.186, 0)
+		gridLayout.CellPadding = UDim2.new(0.017, 0, 0.017, 0)
+	else
+		gridLayout.CellSize    = UDim2.new(0.314, 0, 0.314, 0)
+		gridLayout.CellPadding = UDim2.new(0.029, 0, 0.029, 0)
+	end
+
+	local hasIcon = currentTheme.SquareIcon and currentTheme.SquareIcon ~= ""
+	for row = 1, newGridSize do
+		for col = 1, newGridSize do
+			local pos = (row - 1) * newGridSize + col
+
+			local btn = Instance.new("TextButton")
+			btn.Name             = "Square" .. pos
+			btn.BackgroundColor3 = currentTheme.Colors.Square
+			btn.BorderSizePixel  = 0
+			btn.AutoButtonColor  = false
+			btn.LayoutOrder      = pos
+			btn.Text             = currentTheme.SquareIcon or ""
+			btn.TextColor3       = currentTheme.Colors.Highlight
+			btn.TextTransparency = hasIcon and 0.3 or 1
+			btn.TextScaled       = true
+			btn.Font             = Enum.Font.GothamBold
+			btn.Parent           = gridFrame
+
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0.08, 0)
+			btnCorner.Parent = btn
+
+			btn.MouseButton1Click:Connect(function()
+				OnSquareClick(pos)
+			end)
+
+			gridButtons[pos] = btn
+		end
 	end
 end
 
@@ -400,14 +453,24 @@ function OnSquareClick(position)
 	playerInputEvent:FireServer(position)
 end
 
-function ShowResult(won, sequenceLength)
+function ShowResult(won, sequenceLength, bonusCoins, streakCount, isNewRecord)
 	canInput = false
+	bonusCoins  = bonusCoins  or 0
+	streakCount = streakCount or 0
+	isNewRecord = isNewRecord or false
+
 	if won then
-		statusLabel.Text       = "YOU WIN! 🎉 Sequence: " .. sequenceLength
+		local baseCoins   = 50
+		local totalCoins  = baseCoins + bonusCoins
+		local streakText  = streakCount >= 3 and ("  🔥 " .. streakCount .. " streak!") or ""
+		local bonusText   = bonusCoins > 0 and (" (+" .. bonusCoins .. " bonus)") or ""
+		statusLabel.Text       = "YOU WIN! +$" .. totalCoins .. " coins" .. bonusText .. streakText
 		statusLabel.TextColor3 = currentTheme.Colors.Active
 	else
-		statusLabel.Text       = "YOU LOSE! Sequence: " .. sequenceLength
-		statusLabel.TextColor3 = currentTheme.Colors.Wrong
+		-- Solo game
+		local recordText = isNewRecord and "  ⭐ NEW RECORD!" or ""
+		statusLabel.Text       = "Game Over! Sequence: " .. sequenceLength .. recordText
+		statusLabel.TextColor3 = isNewRecord and Color3.fromRGB(255, 215, 0) or currentTheme.Colors.Wrong
 	end
 end
 
@@ -429,7 +492,10 @@ end
 
 -- ── Event handlers ───────────────────────────────────────────────────────────
 
-showGameUIEvent.OnClientEvent:Connect(function(show)
+showGameUIEvent.OnClientEvent:Connect(function(show, gridSize)
+	if show then
+		rebuildGrid(gridSize or GameConfig.GRID_SIZE)
+	end
 	mainFrame.Visible = show
 	if not show then
 		canInput          = false
@@ -450,8 +516,8 @@ sequenceShowEvent.OnClientEvent:Connect(function(sequence)
 	ShowSequence(sequence, isMyTurn)
 end)
 
-gameResultEvent.OnClientEvent:Connect(function(won, sequenceLength)
-	ShowResult(won, sequenceLength)
+gameResultEvent.OnClientEvent:Connect(function(won, sequenceLength, bonusCoins, streakCount, isNewRecord)
+	ShowResult(won, sequenceLength, bonusCoins, streakCount, isNewRecord)
 end)
 
 updateLivesEvent.OnClientEvent:Connect(function(lives1, lives2)
@@ -486,11 +552,16 @@ sequenceFeedbackEvent.OnClientEvent:Connect(function(isCorrect)
 	ShowFeedback(isCorrect)
 end)
 
-updateTimerEvent.OnClientEvent:Connect(function(timeRemaining, isActive)
-	if isActive then
+updateTimerEvent.OnClientEvent:Connect(function(timeRemaining, state)
+	if state == "hidden" then
+		timerDisplay.Visible = false
+	elseif state == "paused" then
 		timerDisplay.Visible = true
 		timerDisplay.Text    = "⏱: " .. tostring(math.ceil(timeRemaining))
-
+		timerDisplay.TextColor3 = Color3.fromRGB(140, 140, 140)
+	else -- "active"
+		timerDisplay.Visible = true
+		timerDisplay.Text    = "⏱: " .. tostring(math.ceil(timeRemaining))
 		local color
 		if timeRemaining <= 3 then
 			color = Color3.fromRGB(255, 100, 100)
@@ -500,8 +571,6 @@ updateTimerEvent.OnClientEvent:Connect(function(timeRemaining, isActive)
 			color = Color3.fromRGB(255, 255, 255)
 		end
 		timerDisplay.TextColor3 = color
-	else
-		timerDisplay.Visible = false
 	end
 end)
 

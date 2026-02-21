@@ -1,5 +1,5 @@
 -- LeaderboardManager.server.lua
--- Populates the three in-world leaderboards (Wins, IQ, Coins) with top player data
+-- Populates the four in-world leaderboards (Wins, IQ, Coins, Solo) with top player data
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -8,9 +8,10 @@ local TOP_COUNT = 10
 local UPDATE_INTERVAL = 60 -- seconds between refreshes
 
 -- OrderedDataStores (must match keys used in PlayerDataManager)
-local WinsStore  = DataStoreService:GetOrderedDataStore("Leaderboard_Wins")
-local IQStore    = DataStoreService:GetOrderedDataStore("Leaderboard_IQ")
-local CoinsStore = DataStoreService:GetOrderedDataStore("Leaderboard_Coins")
+local WinsStore          = DataStoreService:GetOrderedDataStore("Leaderboard_Wins")
+local IQStore            = DataStoreService:GetOrderedDataStore("Leaderboard_IQ")
+local CoinsStore         = DataStoreService:GetOrderedDataStore("Leaderboard_Coins")
+local SoloHighScoreStore = DataStoreService:GetOrderedDataStore("Leaderboard_SoloHighScore")
 
 -- Wait for scene to load
 local leaderboardsFolder = game.Workspace:WaitForChild("Lobby"):WaitForChild("Leaderboards")
@@ -30,6 +31,11 @@ local CONFIGS = {
 		part  = leaderboardsFolder:WaitForChild("Coins Leaderboard"),
 		store = CoinsStore,
 		title = "TOP COINS",
+	},
+	{
+		part  = leaderboardsFolder:WaitForChild("Solo Leaderboard"),
+		store = SoloHighScoreStore,
+		title = "TOP SOLO SCORE",
 	},
 }
 

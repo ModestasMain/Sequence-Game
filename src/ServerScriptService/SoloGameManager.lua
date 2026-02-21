@@ -36,6 +36,7 @@ function SoloSession.new(player, platform, gridSize)
 	self.Started = false
 	self.TimerThread = nil
 	self.TimerActive = false
+	self.PeakSequence = 0  -- Highest sequence completed this session (for solo_seq quest)
 	return self
 end
 
@@ -216,6 +217,12 @@ function SoloSession:HandleInput(position)
 			print("[Solo] Correct sequence! Length: " .. self.SequenceLength .. " by " .. self.Player.Name)
 			PlayerDataManager:AddCoins(self.Player, GameConfig.SOLO_CORRECT_COINS)
 			sequenceFeedbackEvent:FireClient(self.Player, true)
+
+			-- Track peak for quest progress
+			if self.SequenceLength > self.PeakSequence then
+				self.PeakSequence = self.SequenceLength
+			end
+
 			if lp then
 				lp:ShowFeedback(true)
 			end
@@ -308,8 +315,22 @@ function SoloSession:EndGame(forced)
 
 	print("[Solo] Game over for " .. self.Player.Name .. " - Reached sequence: " .. self.SequenceLength)
 
-	-- Show result
-	gameResultEvent:FireClient(self.Player, false, self.SequenceLength)
+	-- Check for new personal best BEFORE updating
+	local playerData = PlayerDataManager.PlayerData[self.Player.UserId]
+	local prevBest = playerData and (playerData.HighestSequence or 0) or 0
+	local isNewRecord = self.SequenceLength > prevBest
+
+	PlayerDataManager:UpdateHighestSequence(self.Player, self.SequenceLength)
+
+	-- Quest: play 1 solo game
+	PlayerDataManager:UpdateQuestProgress(self.Player, "play_solo", 1)
+
+	-- Quest: reach sequence milestones (uses PeakSequence = highest completed this session)
+	PlayerDataManager:UpdateQuestProgress(self.Player, "solo_seq_8",  self.PeakSequence)
+	PlayerDataManager:UpdateQuestProgress(self.Player, "solo_seq_12", self.PeakSequence)
+
+	-- Show result (won=false for solo, bonusCoins=0, streak=0, isNewRecord)
+	gameResultEvent:FireClient(self.Player, false, self.SequenceLength, 0, 0, isNewRecord)
 
 	task.wait(3)
 

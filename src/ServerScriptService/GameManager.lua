@@ -440,13 +440,29 @@ function GameSession:EndGame(loser, forced)
 	print("Game Over! Winner: " .. (winner and winner.Name or "None") .. ", Loser: " .. loser.Name)
 
 	-- Award coins and update stats
+	local winnerFinalCoins, winnerStreak, winnerMultiplier = 0, 0, 1.0
 	if winner then
-		PlayerDataManager:AddWin(winner, GameConfig.WIN_COINS)
+		-- Get streak BEFORE adding the win so we know the upcoming new streak
+		local winnerData = PlayerDataManager.PlayerData[winner.UserId]
+		local preWinStreak = winnerData and (winnerData.Streak or 0) or 0
+		winnerStreak = preWinStreak + 1 -- This will be the streak after the win
+
+		winnerFinalCoins, _, winnerMultiplier = PlayerDataManager:AddWin(winner, GameConfig.WIN_COINS)
 		PlayerDataManager:UpdateHighestSequence(winner, self.SequenceLength)
+
+		-- Quest: win a 1v1 match
+		PlayerDataManager:UpdateQuestProgress(winner, "win_1v1", 1)
 	end
 
 	PlayerDataManager:AddLoss(loser, GameConfig.PARTICIPATION_COINS)
 	PlayerDataManager:UpdateHighestSequence(loser, self.SequenceLength)
+
+	-- Quest: play a 1v1 match (both players, non-forced games only)
+	if not forced then
+		for _, p in ipairs(self.Players) do
+			PlayerDataManager:UpdateQuestProgress(p, "play_1v1", 1)
+		end
+	end
 
 	-- Update IQ ratings (ELO-style)
 	if winner then
@@ -456,14 +472,17 @@ function GameSession:EndGame(loser, forced)
 	if forced then
 		-- Player left/reset mid-game: notify winner instantly, short wait
 		if winner then
-			gameResultEvent:FireClient(winner, true, self.SequenceLength)
+			gameResultEvent:FireClient(winner, true, self.SequenceLength, 0, 1, false)
 		end
 		task.wait(2)
 	else
 		-- Natural game end: notify both players
+		-- winner gets streak info; loser gets no bonus
 		for _, player in ipairs(self.Players) do
 			local won = (player == winner)
-			gameResultEvent:FireClient(player, won, self.SequenceLength)
+			local bonusCoins = won and (winnerFinalCoins - GameConfig.WIN_COINS) or 0
+			local streak     = won and winnerStreak or 0
+			gameResultEvent:FireClient(player, won, self.SequenceLength, bonusCoins, streak, false)
 		end
 		task.wait(5)
 	end
