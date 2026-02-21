@@ -39,9 +39,18 @@ end)
 -- Start playing immediately
 music:Play()
 
--- Fade out when a game begins
-showGameUI.OnClientEvent:Connect(function()
-	fadeTo(0)
+-- Repeat when the track ends
+music.Ended:Connect(function()
+	if musicEnabled then
+		music:Play()
+	end
+end)
+
+-- Fade out when a game begins (ignore the hide call when game ends)
+showGameUI.OnClientEvent:Connect(function(showing)
+	if showing then
+		fadeTo(0)
+	end
 end)
 
 -- Fade back in when the game ends (only if music is still enabled)

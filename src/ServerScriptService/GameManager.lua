@@ -447,10 +447,11 @@ function GameSession:EndGame(loser, forced)
 	end
 
 	if forced then
-		-- Player left/reset mid-game: notify winner instantly, short wait
+		-- Player left/reset mid-game: notify both players so their music fades back in
 		if winner then
 			gameResultEvent:FireClient(winner, true, self.SequenceLength, 0, 1, false)
 		end
+		gameResultEvent:FireClient(loser, false, self.SequenceLength, 0, 0, false)
 		task.wait(2)
 	else
 		-- Natural game end: notify both players

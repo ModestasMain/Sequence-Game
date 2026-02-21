@@ -74,6 +74,12 @@
         },
         "TutorialDone": {
           "$className": "RemoteEvent"
+        },
+        "QuickJoinNotify": {
+          "$className": "RemoteEvent"
+        },
+        "QuickJoinRequest": {
+          "$className": "RemoteEvent"
         }
       }
     },

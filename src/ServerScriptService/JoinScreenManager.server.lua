@@ -3,7 +3,12 @@
 -- Lives in ServerScriptService so it syncs via Rojo
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local Players           = game:GetService("Players")
+local GameConfig        = require(ReplicatedStorage:WaitForChild("GameConfig"))
+
+local remoteEvents      = ReplicatedStorage:WaitForChild("RemoteEvents")
+local quickJoinNotify   = remoteEvents:WaitForChild("QuickJoinNotify")
+local quickJoinRequest  = remoteEvents:WaitForChild("QuickJoinRequest")
 
 local JoinScreenManager = {}
 
@@ -352,26 +357,44 @@ function JoinScreenManager:SetupPlatform(platformModel)
 	-- ===========================
 	-- Lobby logic
 	-- ===========================
+	-- Broadcast a quick-join notification to all players NOT in this queue
+	local function broadcastNotification(show)
+		local waiter = waitingPlayers[1]
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= waiter then
+				if show and waiter then
+					quickJoinNotify:FireClient(player, true, platformModel.Name, waiter.UserId, waiter.Name, gridSize)
+				else
+					quickJoinNotify:FireClient(player, false, platformModel.Name)
+				end
+			end
+		end
+	end
+
 	local function updateDisplay()
 		updateBillboard()
 		local count = #waitingPlayers
 		if gameInProgress then
+			broadcastNotification(false)
 			return
 		elseif count == 0 then
 			previewInfoLabel.Text = "Waiting for players"
 			previewLivesLabel.Text = "0/2 Players"
 			previewStatusLabel.Text = "Press E to Join!"
 			previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+			broadcastNotification(false)
 		elseif count == 1 then
 			previewInfoLabel.Text = waitingPlayers[1].Name .. " is waiting..."
 			previewLivesLabel.Text = "1/2 Players"
 			previewStatusLabel.Text = "Need 1 more player!"
 			previewStatusLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
+			broadcastNotification(true)
 		else
 			previewInfoLabel.Text = waitingPlayers[1].Name .. "  vs  " .. waitingPlayers[2].Name
 			previewLivesLabel.Text = "2/2 Players"
 			previewStatusLabel.Text = "Starting Match..."
 			previewStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+			broadcastNotification(false)
 		end
 	end
 
@@ -492,29 +515,22 @@ function JoinScreenManager:SetupPlatform(platformModel)
 		GameManager:StartGame(player1, player2, platformObj, gridSize)
 	end
 
-	-- Handle Press E
-	joinPrompt.Triggered:Connect(function(player)
-		print("[JoinScreen] E pressed by " .. player.Name .. " on " .. platformModel.Name)
-
+	-- Core join logic (no queue-size assumption — works for both first and second player)
+	local function tryJoinPlayer(player)
 		if debounce[player.UserId] then return end
 		debounce[player.UserId] = true
-		task.delay(1, function()
-			debounce[player.UserId] = nil
-		end)
+		task.delay(1, function() debounce[player.UserId] = nil end)
 
 		if gameInProgress or countdownActive then return end
-
-		if isPlayerWaiting(player) then
-			removePlayer(player)
-			return
-		end
-
+		if isPlayerWaiting(player) then return end
 		if #waitingPlayers >= 2 then return end
+
+		-- Dismiss any QuickJoin notification for this player
+		quickJoinNotify:FireClient(player, false, platformModel.Name)
 
 		table.insert(waitingPlayers, player)
 		print("[JoinScreen] " .. player.Name .. " joined! Queue: " .. #waitingPlayers .. "/2 on " .. platformModel.Name)
 
-		-- Lock player to their seat (slot 1 = Left, slot 2 = Right)
 		local slot = #waitingPlayers
 		local seatPart = slot == 1 and platformModel:FindFirstChild("Left") or platformModel:FindFirstChild("Right")
 		if seatPart then
@@ -526,6 +542,32 @@ function JoinScreenManager:SetupPlatform(platformModel)
 		if #waitingPlayers == 2 then
 			startGame()
 		end
+	end
+
+	-- QuickJoin wrapper: only allows joining when someone is already waiting
+	-- (prevents a stale card click from placing the clicker at an empty table)
+	local function tryQuickJoinPlayer(player)
+		if #waitingPlayers == 0 then
+			quickJoinNotify:FireClient(player, false, platformModel.Name)
+			return
+		end
+		tryJoinPlayer(player)
+	end
+
+	-- Handle QuickJoin button clicks for THIS platform specifically
+	quickJoinRequest.OnServerEvent:Connect(function(player, requestedName)
+		if requestedName ~= platformModel.Name then return end
+		tryQuickJoinPlayer(player)
+	end)
+
+	-- Handle Press E (toggle: press again to leave the queue)
+	joinPrompt.Triggered:Connect(function(player)
+		print("[JoinScreen] E pressed by " .. player.Name .. " on " .. platformModel.Name)
+		if isPlayerWaiting(player) then
+			removePlayer(player)
+			return
+		end
+		tryJoinPlayer(player)
 	end)
 
 	-- Handle player leaving game
@@ -553,5 +595,6 @@ end
 
 task.wait(2) -- Wait for workspace and Rojo to load
 JoinScreenManager:Initialize()
+
 
 return JoinScreenManager
