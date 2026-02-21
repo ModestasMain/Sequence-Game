@@ -64,6 +64,7 @@ local function getDefaultData()
 		OwnedSounds = {"Default"},
 		EquippedSound = "Default",
 		DailyQuests = defaultQuestData(),
+		HasSeenTutorial = false,
 	}
 end
 
@@ -99,6 +100,7 @@ function PlayerDataManager:LoadData(player)
 		if not data.OwnedSounds then data.OwnedSounds = {"Default"} end
 		if not data.EquippedSound then data.EquippedSound = "Default" end
 		if not data.DailyQuests then data.DailyQuests = defaultQuestData() end
+		if data.HasSeenTutorial == nil then data.HasSeenTutorial = false end
 		-- Reset quest data if quest count changed (e.g. after a quest config update)
 		local n = #QuestConfig.QUESTS
 		if not data.DailyQuests.Progress or #data.DailyQuests.Progress ~= n then

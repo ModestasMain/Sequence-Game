@@ -68,6 +68,12 @@
         },
         "RequestQuestData": {
           "$className": "RemoteEvent"
+        },
+        "TutorialShow": {
+          "$className": "RemoteEvent"
+        },
+        "TutorialDone": {
+          "$className": "RemoteEvent"
         }
       }
     },
