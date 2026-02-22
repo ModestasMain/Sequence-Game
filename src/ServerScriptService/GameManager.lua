@@ -16,6 +16,7 @@ local turnNotificationEvent = remoteEvents:WaitForChild("TurnNotification")
 local showGameUIEvent = remoteEvents:WaitForChild("ShowGameUI")
 local sequenceFeedbackEvent = remoteEvents:WaitForChild("SequenceFeedback")
 local updateTimerEvent = remoteEvents:WaitForChild("UpdateTimer")
+local playWinSoundEvent = remoteEvents:WaitForChild("PlayWinSound")
 
 local GameManager = {}
 GameManager.ActiveGames = {}
@@ -461,6 +462,10 @@ function GameSession:EndGame(loser, forced)
 			local bonusCoins = won and (winnerFinalCoins - GameConfig.WIN_COINS) or 0
 			local streak     = won and winnerStreak or 0
 			gameResultEvent:FireClient(player, won, self.SequenceLength, bonusCoins, streak, false)
+		end
+		-- Play win announcement sounds for all players in the server
+		if winner then
+			playWinSoundEvent:FireAllClients(winner.Name)
 		end
 		task.wait(5)
 	end

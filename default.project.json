@@ -80,6 +80,9 @@
         },
         "QuickJoinRequest": {
           "$className": "RemoteEvent"
+        },
+        "PlayWinSound": {
+          "$className": "RemoteEvent"
         }
       }
     },

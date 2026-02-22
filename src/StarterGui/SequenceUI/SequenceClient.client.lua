@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players           = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
 local player            = Players.LocalPlayer
 
 local GameConfig  = require(ReplicatedStorage:WaitForChild("GameConfig"))
@@ -22,6 +23,7 @@ local sequenceFeedbackEvent = remoteEvents:WaitForChild("SequenceFeedback")
 local updateTimerEvent      = remoteEvents:WaitForChild("UpdateTimer")
 local themeDataEvent        = remoteEvents:WaitForChild("ThemeData")
 local soundDataEvent        = remoteEvents:WaitForChild("SoundData")
+local playWinSoundEvent     = remoteEvents:WaitForChild("PlayWinSound")
 
 -- Theme state
 local currentTheme = ThemeConfig.Themes["Default"]
@@ -359,6 +361,145 @@ soundDataEvent.OnClientEvent:Connect(function(ownedSounds, equippedSound)
 end)
 
 -- ══════════════════════════════════════════════════════════════════════════════
+--  WIN BURST OVERLAY
+-- ══════════════════════════════════════════════════════════════════════════════
+
+local winOverlay = Instance.new("Frame")
+winOverlay.Name                   = "WinOverlay"
+winOverlay.Size                   = UDim2.new(1, 0, 1, 0)
+winOverlay.Position               = UDim2.new(0, 0, 0, 0)
+winOverlay.BackgroundTransparency = 1
+winOverlay.ZIndex                 = 50
+winOverlay.Visible                = false
+winOverlay.Parent                 = screenGui
+
+local flashFrame = Instance.new("Frame")
+flashFrame.Size                   = UDim2.new(1, 0, 1, 0)
+flashFrame.Position               = UDim2.new(0, 0, 0, 0)
+flashFrame.BackgroundColor3       = Color3.fromRGB(255, 255, 255)
+flashFrame.BackgroundTransparency = 1
+flashFrame.BorderSizePixel        = 0
+flashFrame.ZIndex                 = 51
+flashFrame.Parent                 = winOverlay
+
+local winCard = Instance.new("Frame")
+winCard.Name                      = "WinCard"
+winCard.AnchorPoint               = Vector2.new(0.5, 0.5)
+winCard.Position                  = UDim2.new(0.5, 0, 0.44, 0)
+winCard.Size                      = UDim2.new(0.01, 0, 0.01, 0)
+winCard.BackgroundColor3          = Color3.fromRGB(18, 18, 32)
+winCard.BorderSizePixel           = 0
+winCard.ZIndex                    = 52
+winCard.Parent                    = winOverlay
+
+local winCardCorner = Instance.new("UICorner")
+winCardCorner.CornerRadius        = UDim.new(0.055, 0)
+winCardCorner.Parent              = winCard
+
+local winCardStroke = Instance.new("UIStroke")
+winCardStroke.Color               = Color3.fromRGB(255, 200, 50)
+winCardStroke.Thickness           = 3
+winCardStroke.Parent              = winCard
+
+local winTrophyLabel = Instance.new("TextLabel")
+winTrophyLabel.Size               = UDim2.new(0.9, 0, 0.30, 0)
+winTrophyLabel.Position           = UDim2.new(0.05, 0, 0.04, 0)
+winTrophyLabel.BackgroundTransparency = 1
+winTrophyLabel.Text               = "🏆 YOU WIN! 🏆"
+winTrophyLabel.TextColor3         = Color3.fromRGB(255, 210, 50)
+winTrophyLabel.TextScaled         = true
+winTrophyLabel.Font               = Enum.Font.GothamBold
+winTrophyLabel.ZIndex             = 53
+winTrophyLabel.Parent             = winCard
+
+local winCoinsLabel = Instance.new("TextLabel")
+winCoinsLabel.Name                = "WinCoinsLabel"
+winCoinsLabel.Size                = UDim2.new(0.9, 0, 0.25, 0)
+winCoinsLabel.Position            = UDim2.new(0.05, 0, 0.36, 0)
+winCoinsLabel.BackgroundTransparency = 1
+winCoinsLabel.Text                = "+50 coins"
+winCoinsLabel.TextColor3          = Color3.fromRGB(255, 255, 255)
+winCoinsLabel.TextScaled          = true
+winCoinsLabel.Font                = Enum.Font.Gotham
+winCoinsLabel.ZIndex              = 53
+winCoinsLabel.Parent              = winCard
+
+local winStreakLabel = Instance.new("TextLabel")
+winStreakLabel.Name               = "WinStreakLabel"
+winStreakLabel.Size               = UDim2.new(0.9, 0, 0.22, 0)
+winStreakLabel.Position           = UDim2.new(0.05, 0, 0.68, 0)
+winStreakLabel.BackgroundTransparency = 1
+winStreakLabel.Text               = ""
+winStreakLabel.TextColor3         = Color3.fromRGB(255, 150, 50)
+winStreakLabel.TextScaled         = true
+winStreakLabel.Font               = Enum.Font.GothamBold
+winStreakLabel.ZIndex             = 53
+winStreakLabel.Parent             = winCard
+
+local CONFETTI_COLORS = {
+	Color3.fromRGB(255, 215, 50),
+	Color3.fromRGB(100, 200, 255),
+	Color3.fromRGB(150, 255, 120),
+	Color3.fromRGB(255, 100, 200),
+	Color3.fromRGB(200, 130, 255),
+	Color3.fromRGB(255, 160, 50),
+}
+
+local function PlayWinBurst(totalCoins, bonusCoins, streakCount)
+	mainFrame.Visible  = false
+	winOverlay.Visible = true
+	winCard.Size       = UDim2.new(0.01, 0, 0.01, 0)
+
+	local bonusText = bonusCoins > 0 and (" (+" .. bonusCoins .. " bonus)") or ""
+	winCoinsLabel.Text = "+" .. totalCoins .. " coins" .. bonusText
+	winStreakLabel.Text = streakCount >= 3 and ("🔥 " .. streakCount .. " win streak!") or ""
+
+	-- White flash
+	flashFrame.BackgroundTransparency = 0.25
+	TweenService:Create(flashFrame, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+
+	-- Card bounce in
+	task.delay(0.06, function()
+		TweenService:Create(winCard, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0.68, 0, 0.38, 0),
+		}):Play()
+	end)
+
+	-- Confetti burst
+	for i = 1, 30 do
+		task.spawn(function()
+			task.wait(math.random() * 1.3)
+			local piece = Instance.new("Frame")
+			piece.Size             = UDim2.new(0.018, 0, 0.028, 0)
+			piece.Position         = UDim2.new(math.random() * 0.88 + 0.05, 0, -0.06, 0)
+			piece.BackgroundColor3 = CONFETTI_COLORS[math.random(#CONFETTI_COLORS)]
+			piece.BorderSizePixel  = 0
+			piece.ZIndex           = 55
+			piece.Parent           = winOverlay
+			Instance.new("UICorner", piece).CornerRadius = UDim.new(0.2, 0)
+			local fallTime = 1.6 + math.random() * 1.2
+			TweenService:Create(piece, TweenInfo.new(fallTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = UDim2.new(piece.Position.X.Scale, 0, 1.15, 0),
+			}):Play()
+			task.wait(fallTime + 0.1)
+			piece:Destroy()
+		end)
+	end
+
+	-- Shrink card out after 3.2s then hide
+	task.delay(3.2, function()
+		TweenService:Create(winCard, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0.01, 0, 0.01, 0),
+		}):Play()
+		task.delay(0.4, function()
+			winOverlay.Visible = false
+		end)
+	end)
+end
+
+-- ══════════════════════════════════════════════════════════════════════════════
 --  GAME LOGIC
 -- ══════════════════════════════════════════════════════════════════════════════
 
@@ -466,6 +607,7 @@ function ShowResult(won, sequenceLength, bonusCoins, streakCount, isNewRecord)
 		local bonusText   = bonusCoins > 0 and (" (+" .. bonusCoins .. " bonus)") or ""
 		statusLabel.Text       = "YOU WIN! +$" .. totalCoins .. " coins" .. bonusText .. streakText
 		statusLabel.TextColor3 = currentTheme.Colors.Active
+		PlayWinBurst(totalCoins, bonusCoins, streakCount)
 	else
 		-- Solo game
 		local recordText = isNewRecord and "  ⭐ NEW RECORD!" or ""
@@ -496,7 +638,8 @@ showGameUIEvent.OnClientEvent:Connect(function(show, gridSize)
 	if show then
 		rebuildGrid(gridSize or GameConfig.GRID_SIZE)
 	end
-	mainFrame.Visible = show
+	mainFrame.Visible  = show
+	winOverlay.Visible = false
 	if not show then
 		canInput          = false
 		isShowingSequence = false
@@ -518,6 +661,13 @@ end)
 
 gameResultEvent.OnClientEvent:Connect(function(won, sequenceLength, bonusCoins, streakCount, isNewRecord)
 	ShowResult(won, sequenceLength, bonusCoins, streakCount, isNewRecord)
+end)
+
+playWinSoundEvent.OnClientEvent:Connect(function(winnerName)
+	local winSound = workspace:FindFirstChild("roblox-old-winning-sound-effect")
+	local popSound = workspace:FindFirstChild("confetti-pop-sound")
+	if winSound then winSound:Play() end
+	if popSound then popSound:Play() end
 end)
 
 updateLivesEvent.OnClientEvent:Connect(function(lives1, lives2)
