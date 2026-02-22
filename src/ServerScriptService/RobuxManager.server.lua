@@ -16,6 +16,9 @@ local themeDataEvent  = remoteEvents:WaitForChild("ThemeData")
 local titleDataEvent  = remoteEvents:WaitForChild("TitleData")
 local soundDataEvent  = remoteEvents:WaitForChild("SoundData")
 
+-- CaseGranted BindableEvent is created by CaseManager; wait for it
+local caseGrantedEvent = game.ServerScriptService:WaitForChild("CaseGranted", 30)
+
 -- ── Grant helpers ──────────────────────────────────────────────────────────────
 
 local function grantTheme(player, key)
@@ -77,6 +80,15 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 			print(string.format("[Robux] %s purchased %s (+%d coins)", player.Name, bundle.Name, bundle.Amount))
 			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
+	end
+
+	-- Win Effects Case
+	if RobuxConfig.CaseProduct and RobuxConfig.CaseProduct.ProductId == productId and productId ~= 0 then
+		if caseGrantedEvent then
+			caseGrantedEvent:Fire(player)
+			print(string.format("[Robux] %s purchased a Win Effects Case via Robux", player.Name))
+		end
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
 	-- Reset IQ

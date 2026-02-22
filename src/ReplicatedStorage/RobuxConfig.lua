@@ -54,6 +54,13 @@ RobuxConfig.TitlePasses = {
 	TheChosenOne = { PassId = 1722437334, Robux = 600 },
 }
 
+-- ── Win Effects Case (Developer Product — reusable) ───────────────────────────
+RobuxConfig.CaseProduct = {
+	Name      = "Win Effects Case",
+	Robux     = 25,
+	ProductId = 3542871199,  -- paste your Developer Product ID here
+}
+
 -- ── Sound Pack Game Passes ─────────────────────────────────────────────────────
 RobuxConfig.SoundPasses = {
 	Piano      = { PassId = 1720813462, Robux = 75  },

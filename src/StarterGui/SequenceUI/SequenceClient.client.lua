@@ -6,9 +6,10 @@ local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
 local player            = Players.LocalPlayer
 
-local GameConfig  = require(ReplicatedStorage:WaitForChild("GameConfig"))
-local ThemeConfig = require(ReplicatedStorage:WaitForChild("ThemeConfig"))
-local SoundConfig = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local GameConfig      = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local ThemeConfig     = require(ReplicatedStorage:WaitForChild("ThemeConfig"))
+local SoundConfig     = require(ReplicatedStorage:WaitForChild("SoundConfig"))
+local WinEffectConfig = require(ReplicatedStorage:WaitForChild("WinEffectConfig"))
 
 -- Remote Events
 local remoteEvents          = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -24,6 +25,7 @@ local updateTimerEvent      = remoteEvents:WaitForChild("UpdateTimer")
 local themeDataEvent        = remoteEvents:WaitForChild("ThemeData")
 local soundDataEvent        = remoteEvents:WaitForChild("SoundData")
 local playWinSoundEvent     = remoteEvents:WaitForChild("PlayWinSound")
+local winEffectDataEvent    = remoteEvents:WaitForChild("WinEffectData")
 
 -- Theme state
 local currentTheme = ThemeConfig.Themes["Default"]
@@ -436,6 +438,11 @@ winStreakLabel.Font               = Enum.Font.GothamBold
 winStreakLabel.ZIndex             = 53
 winStreakLabel.Parent             = winCard
 
+-- Tracks the player's currently equipped win effect
+local equippedWinEffect = "Default"
+
+-- ── Effect particle spawners ──────────────────────────────────────────────────
+
 local CONFETTI_COLORS = {
 	Color3.fromRGB(255, 215, 50),
 	Color3.fromRGB(100, 200, 255),
@@ -445,29 +452,7 @@ local CONFETTI_COLORS = {
 	Color3.fromRGB(255, 160, 50),
 }
 
-local function PlayWinBurst(totalCoins, bonusCoins, streakCount)
-	mainFrame.Visible  = false
-	winOverlay.Visible = true
-	winCard.Size       = UDim2.new(0.01, 0, 0.01, 0)
-
-	local bonusText = bonusCoins > 0 and (" (+" .. bonusCoins .. " bonus)") or ""
-	winCoinsLabel.Text = "+" .. totalCoins .. " coins" .. bonusText
-	winStreakLabel.Text = streakCount >= 3 and ("🔥 " .. streakCount .. " win streak!") or ""
-
-	-- White flash
-	flashFrame.BackgroundTransparency = 0.25
-	TweenService:Create(flashFrame, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		BackgroundTransparency = 1,
-	}):Play()
-
-	-- Card bounce in
-	task.delay(0.06, function()
-		TweenService:Create(winCard, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0.68, 0, 0.38, 0),
-		}):Play()
-	end)
-
-	-- Confetti burst
+local function spawnDefaultParticles()
 	for i = 1, 30 do
 		task.spawn(function()
 			task.wait(math.random() * 1.3)
@@ -487,6 +472,217 @@ local function PlayWinBurst(totalCoins, bonusCoins, streakCount)
 			piece:Destroy()
 		end)
 	end
+end
+
+local ROCKET_COLORS = {
+	Color3.fromRGB(255, 60, 60),
+	Color3.fromRGB(255, 210, 50),
+	Color3.fromRGB(60, 120, 255),
+	Color3.fromRGB(60, 230, 100),
+	Color3.fromRGB(255, 100, 200),
+}
+
+local function spawnFireworksParticles()
+	for r = 1, 5 do
+		task.spawn(function()
+			task.wait(r * 0.18)
+			local startX = 0.15 + math.random() * 0.70
+			local color  = ROCKET_COLORS[math.random(#ROCKET_COLORS)]
+			local peakY  = 0.15 + math.random() * 0.38
+
+			local rocket = Instance.new("Frame")
+			rocket.Size             = UDim2.new(0.008, 0, 0.04, 0)
+			rocket.AnchorPoint      = Vector2.new(0.5, 1)
+			rocket.Position         = UDim2.new(startX, 0, 1.02, 0)
+			rocket.BackgroundColor3 = color
+			rocket.BorderSizePixel  = 0
+			rocket.ZIndex           = 55
+			rocket.Parent           = winOverlay
+
+			local riseTime = 0.45 + math.random() * 0.15
+			TweenService:Create(rocket, TweenInfo.new(riseTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = UDim2.new(startX, 0, peakY, 0),
+			}):Play()
+			task.wait(riseTime)
+			rocket:Destroy()
+
+			-- Explosion burst
+			for e = 1, 12 do
+				task.spawn(function()
+					local angle = (e / 12) * math.pi * 2
+					local dist  = 0.18 + math.random() * 0.14
+					local endX  = startX + math.cos(angle) * dist
+					local endY  = peakY  + math.sin(angle) * dist * 0.65
+
+					local p = Instance.new("Frame")
+					p.Size             = UDim2.new(0.013, 0, 0.019, 0)
+					p.AnchorPoint      = Vector2.new(0.5, 0.5)
+					p.Position         = UDim2.new(startX, 0, peakY, 0)
+					p.BackgroundColor3 = color
+					p.BorderSizePixel  = 0
+					p.ZIndex           = 56
+					p.Parent           = winOverlay
+					Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
+					TweenService:Create(p, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Position              = UDim2.new(endX, 0, endY, 0),
+						BackgroundTransparency = 1,
+					}):Play()
+					task.wait(0.75)
+					p:Destroy()
+				end)
+			end
+		end)
+	end
+end
+
+local function spawnMoneyParticles()
+	for i = 1, 35 do
+		task.spawn(function()
+			task.wait(math.random() * 1.5)
+			local piece = Instance.new("TextLabel")
+			piece.Size                   = UDim2.new(0.055, 0, 0.075, 0)
+			piece.Position               = UDim2.new(math.random() * 0.88 + 0.05, 0, -0.10, 0)
+			piece.BackgroundTransparency = 1
+			piece.Text                   = "💰"
+			piece.TextScaled             = true
+			piece.Font                   = Enum.Font.GothamBold
+			piece.ZIndex                 = 55
+			piece.Parent                 = winOverlay
+			local fallTime = 1.5 + math.random() * 1.1
+			TweenService:Create(piece, TweenInfo.new(fallTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = UDim2.new(piece.Position.X.Scale, 0, 1.12, 0),
+			}):Play()
+			task.wait(fallTime + 0.1)
+			piece:Destroy()
+		end)
+	end
+end
+
+local GALAXY_COLORS = {
+	Color3.fromRGB(200, 150, 255),
+	Color3.fromRGB(100, 150, 255),
+	Color3.fromRGB(255, 255, 255),
+	Color3.fromRGB(150, 100, 255),
+	Color3.fromRGB(100, 200, 255),
+}
+
+local function spawnGalaxyParticles()
+	for i = 1, 45 do
+		task.spawn(function()
+			task.wait(math.random() * 0.9)
+			local angle = math.random() * math.pi * 2
+			local dist  = 0.12 + math.random() * 0.42
+			local swirl = math.pi * 0.5 * (math.random() > 0.5 and 1 or -1)
+
+			local p = Instance.new("Frame")
+			p.Size             = UDim2.new(0.011, 0, 0.016, 0)
+			p.AnchorPoint      = Vector2.new(0.5, 0.5)
+			p.Position         = UDim2.new(0.5, 0, 0.44, 0)
+			p.BackgroundColor3 = GALAXY_COLORS[math.random(#GALAXY_COLORS)]
+			p.BorderSizePixel  = 0
+			p.ZIndex           = 55
+			p.Parent           = winOverlay
+			Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
+
+			local endX = 0.5  + math.cos(angle + swirl) * dist
+			local endY = 0.44 + math.sin(angle + swirl) * dist * 0.65
+			local travelTime = 0.8 + math.random() * 0.8
+			TweenService:Create(p, TweenInfo.new(travelTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = UDim2.new(endX, 0, endY, 0),
+			}):Play()
+			task.wait(travelTime)
+			TweenService:Create(p, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1,
+			}):Play()
+			task.wait(0.45)
+			p:Destroy()
+		end)
+	end
+end
+
+local function spawnLightningParticles()
+	-- Strong purple flash for lightning
+	flashFrame.BackgroundTransparency = 0.05
+	flashFrame.BackgroundColor3 = Color3.fromRGB(220, 190, 255)
+	TweenService:Create(flashFrame, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+	task.delay(0.95, function()
+		flashFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	end)
+
+	for cluster = 1, 3 do
+		task.spawn(function()
+			task.wait((cluster - 1) * 0.28)
+			for flash = 1, 2 do
+				local bolt = Instance.new("Frame")
+				bolt.Size                   = UDim2.new(0.007 + math.random() * 0.005, 0, 0.38 + math.random() * 0.30, 0)
+				bolt.AnchorPoint            = Vector2.new(0.5, 0)
+				bolt.Position               = UDim2.new(0.1 + math.random() * 0.8, 0, -0.04, 0)
+				bolt.BackgroundColor3       = Color3.fromRGB(190, 140, 255)
+				bolt.BackgroundTransparency = 0.15
+				bolt.BorderSizePixel        = 0
+				bolt.ZIndex                 = 55
+				bolt.Rotation               = -12 + math.random() * 24
+				bolt.Parent                 = winOverlay
+
+				local glow = Instance.new("Frame")
+				glow.Size                   = UDim2.new(0.35, 0, 1, 0)
+				glow.AnchorPoint            = Vector2.new(0.5, 0)
+				glow.Position               = UDim2.new(0.5, 0, 0, 0)
+				glow.BackgroundColor3       = Color3.fromRGB(255, 255, 255)
+				glow.BackgroundTransparency = 0.25
+				glow.BorderSizePixel        = 0
+				glow.ZIndex                 = 56
+				glow.Parent                 = bolt
+
+				TweenService:Create(bolt, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 1,
+				}):Play()
+				TweenService:Create(glow, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 1,
+				}):Play()
+				task.wait(0.32)
+				bolt:Destroy()
+				task.wait(0.14 + math.random() * 0.16)
+			end
+		end)
+	end
+end
+
+local EFFECT_SPAWNERS = {
+	Default   = spawnDefaultParticles,
+	Fireworks = spawnFireworksParticles,
+	MoneyRain = spawnMoneyParticles,
+	Galaxy    = spawnGalaxyParticles,
+	Lightning = spawnLightningParticles,
+}
+
+local function PlayWinBurst(totalCoins, bonusCoins, streakCount)
+	mainFrame.Visible  = false
+	winOverlay.Visible = true
+	winCard.Size       = UDim2.new(0.01, 0, 0.01, 0)
+
+	local bonusText = bonusCoins > 0 and (" (+" .. bonusCoins .. " bonus)") or ""
+	winCoinsLabel.Text = "+" .. totalCoins .. " coins" .. bonusText
+	winStreakLabel.Text = streakCount >= 3 and ("🔥 " .. streakCount .. " win streak!") or ""
+
+	-- White flash (lightning overrides color inside its spawner)
+	flashFrame.BackgroundTransparency = 0.25
+	TweenService:Create(flashFrame, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+
+	-- Card bounce in
+	task.delay(0.06, function()
+		TweenService:Create(winCard, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0.68, 0, 0.38, 0),
+		}):Play()
+	end)
+
+	-- Spawn the equipped effect's particles
+	local spawner = EFFECT_SPAWNERS[equippedWinEffect] or spawnDefaultParticles
+	spawner()
 
 	-- Shrink card out after 3.2s then hide
 	task.delay(3.2, function()
@@ -668,6 +864,10 @@ playWinSoundEvent.OnClientEvent:Connect(function(winnerName)
 	local popSound = workspace:FindFirstChild("confetti-pop-sound")
 	if winSound then winSound:Play() end
 	if popSound then popSound:Play() end
+end)
+
+winEffectDataEvent.OnClientEvent:Connect(function(owned, equipped)
+	equippedWinEffect = equipped or "Default"
 end)
 
 updateLivesEvent.OnClientEvent:Connect(function(lives1, lives2)

@@ -83,6 +83,24 @@
         },
         "PlayWinSound": {
           "$className": "RemoteEvent"
+        },
+        "WinEffectData": {
+          "$className": "RemoteEvent"
+        },
+        "BuyWinEffect": {
+          "$className": "RemoteEvent"
+        },
+        "EquipWinEffect": {
+          "$className": "RemoteEvent"
+        },
+        "OpenCase": {
+          "$className": "RemoteEvent"
+        },
+        "OpenCaseRobux": {
+          "$className": "RemoteEvent"
+        },
+        "CaseResult": {
+          "$className": "RemoteEvent"
         }
       }
     },

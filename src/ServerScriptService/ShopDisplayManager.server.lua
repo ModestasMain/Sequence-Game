@@ -10,10 +10,10 @@ local TitleConfig       = require(ReplicatedStorage:WaitForChild("TitleConfig"))
 local SoundConfig       = require(ReplicatedStorage:WaitForChild("SoundConfig"))
 local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
 
-local remoteEvents   = ReplicatedStorage:WaitForChild("RemoteEvents")
-local themeDataEvent = remoteEvents:WaitForChild("ThemeData")
-local titleDataEvent = remoteEvents:WaitForChild("TitleData")
-local soundDataEvent = remoteEvents:WaitForChild("SoundData")
+local remoteEvents      = ReplicatedStorage:WaitForChild("RemoteEvents")
+local themeDataEvent    = remoteEvents:WaitForChild("ThemeData")
+local titleDataEvent    = remoteEvents:WaitForChild("TitleData")
+local soundDataEvent    = remoteEvents:WaitForChild("SoundData")
 
 local chestsModel = game.Workspace:WaitForChild("Chests")
 
@@ -54,6 +54,11 @@ for i, key in ipairs(SOUND_KEYS) do
 	local pos = (anchor.CFrame * CFrame.new(-i * ITEM_SPACING, 0, turnLocalZ)).Position
 	table.insert(DISPLAYS, { pos = pos, type = "sound", key = key })
 end
+
+-- Single Win Effects Case chest after sounds
+local soundCount = #SOUND_KEYS
+local casePos = (anchor.CFrame * CFrame.new(-(soundCount + 1) * ITEM_SPACING, 0, turnLocalZ)).Position
+table.insert(DISPLAYS, { pos = casePos, type = "case", key = "Case" })
 
 -- ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -298,6 +303,80 @@ local function buildSoundBillboard(parent, pack)
 	priceLabel.Parent = priceBg
 end
 
+local function buildCaseBillboard(parent)
+	local bb = Instance.new("BillboardGui")
+	bb.Size         = UDim2.new(6, 0, 7, 0)
+	bb.StudsOffset  = Vector3.new(0, 7, 0)
+	bb.AlwaysOnTop  = true
+	bb.ResetOnSpawn = false
+	bb.Parent       = parent
+
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(1, 0, 1, 0)
+	card.BackgroundColor3 = Color3.fromRGB(20, 14, 30)
+	card.BackgroundTransparency = 0.05
+	card.BorderSizePixel = 0
+	card.Parent = bb
+	addCorner(card, UDim.new(0.06, 0))
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color     = Color3.fromRGB(255, 190, 0)
+	stroke.Thickness = 2
+	stroke.Parent    = card
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0.04, 0); pad.PaddingBottom = UDim.new(0.04, 0)
+	pad.PaddingLeft = UDim.new(0.05, 0); pad.PaddingRight = UDim.new(0.05, 0)
+	pad.Parent = card
+
+	local typeLabel = Instance.new("TextLabel")
+	typeLabel.Size = UDim2.new(1, 0, 0.13, 0)
+	typeLabel.Position = UDim2.new(0, 0, 0, 0)
+	typeLabel.BackgroundTransparency = 1
+	typeLabel.Text = "WIN EFFECTS"
+	typeLabel.TextColor3 = Color3.fromRGB(255, 190, 0)
+	typeLabel.TextScaled = true
+	typeLabel.Font = Enum.Font.GothamBold
+	typeLabel.Parent = card
+
+	local chestLabel = Instance.new("TextLabel")
+	chestLabel.Size = UDim2.new(1, 0, 0.38, 0)
+	chestLabel.Position = UDim2.new(0, 0, 0.13, 0)
+	chestLabel.BackgroundTransparency = 1
+	chestLabel.Text = "📦"
+	chestLabel.TextScaled = true
+	chestLabel.Font = Enum.Font.GothamBold
+	chestLabel.Parent = card
+
+	local descLabel = Instance.new("TextLabel")
+	descLabel.Size = UDim2.new(1, 0, 0.15, 0)
+	descLabel.Position = UDim2.new(0, 0, 0.53, 0)
+	descLabel.BackgroundTransparency = 1
+	descLabel.Text = "Spin for a random win effect!"
+	descLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	descLabel.TextScaled = true
+	descLabel.Font = Enum.Font.Gotham
+	descLabel.Parent = card
+
+	local priceBg = Instance.new("Frame")
+	priceBg.Size = UDim2.new(1, 0, 0.22, 0)
+	priceBg.Position = UDim2.new(0, 0, 0.74, 0)
+	priceBg.BackgroundColor3 = Color3.fromRGB(255, 190, 0)
+	priceBg.BackgroundTransparency = 0.1
+	priceBg.BorderSizePixel = 0
+	priceBg.Parent = card
+	addCorner(priceBg, UDim.new(0.3, 0))
+
+	local priceLabel = Instance.new("TextLabel")
+	priceLabel.Size = UDim2.new(1, 0, 1, 0)
+	priceLabel.BackgroundTransparency = 1
+	priceLabel.Text = "300 Coins  /  25 Robux"
+	priceLabel.TextColor3 = Color3.fromRGB(20, 14, 30)
+	priceLabel.TextScaled = true
+	priceLabel.Font = Enum.Font.GothamBold
+	priceLabel.Parent = priceBg
+end
+
 -- ── Create all displays ───────────────────────────────────────────────────────
 
 task.wait(3)
@@ -307,6 +386,7 @@ local animated = {}
 for i, cfg in ipairs(DISPLAYS) do
 	local isTheme = cfg.type == "theme"
 	local isSound = cfg.type == "sound"
+	local isCase  = cfg.type == "case"
 	local color, price
 
 	if isTheme then
@@ -317,6 +397,9 @@ for i, cfg in ipairs(DISPLAYS) do
 		local t = SoundConfig.Packs[cfg.key]
 		color = t.Color
 		price = t.Price
+	elseif isCase then
+		color = Color3.fromRGB(255, 190, 0)
+		price = 300
 	else
 		local t = TitleConfig.Titles[cfg.key]
 		color = t.Color
@@ -326,12 +409,12 @@ for i, cfg in ipairs(DISPLAYS) do
 	-- Display cube
 	local part = Instance.new("Part")
 	part.Name       = cfg.key .. "_ShopDisplay"
-	part.Size       = isTheme and Vector3.new(3, 3, 3) or Vector3.new(2, 2, 2)
+	part.Size       = isTheme and Vector3.new(3, 3, 3) or (isCase and Vector3.new(3, 3, 3) or Vector3.new(2, 2, 2))
 	part.Anchored   = true
 	part.CanCollide = false
 	part.CastShadow = false
 	part.Color      = color
-	part.Material   = (isTheme or isSound) and Enum.Material.SmoothPlastic or Enum.Material.Neon
+	part.Material   = isCase and Enum.Material.Neon or (isTheme or isSound) and Enum.Material.SmoothPlastic or Enum.Material.Neon
 	part.CFrame     = CFrame.new(cfg.pos)
 	part.Parent     = chestsModel
 
@@ -340,6 +423,8 @@ for i, cfg in ipairs(DISPLAYS) do
 		buildThemeBillboard(part, ThemeConfig.Themes[cfg.key])
 	elseif isSound then
 		buildSoundBillboard(part, SoundConfig.Packs[cfg.key])
+	elseif isCase then
+		buildCaseBillboard(part)
 	else
 		buildTitleBillboard(part, TitleConfig.Titles[cfg.key])
 	end
@@ -350,92 +435,95 @@ for i, cfg in ipairs(DISPLAYS) do
 		displayName = cfg.key .. " Theme"
 	elseif isSound then
 		displayName = SoundConfig.Packs[cfg.key].Name .. " Sound Pack"
+	elseif isCase then
+		displayName = "Win Effects Case"
 	else
 		displayName = TitleConfig.Titles[cfg.key].Name .. " Title"
 	end
 
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText            = "Buy / Equip"
-	prompt.ObjectText            = displayName .. " — " .. price .. " Coins"
-	prompt.HoldDuration          = 0.5
+	prompt.ActionText            = isCase and "Open Case" or "Buy / Equip"
+	prompt.ObjectText            = isCase and "300 Coins or 25 Robux" or (displayName .. " — " .. price .. " Coins")
+	prompt.HoldDuration          = isCase and 0 or 0.5
 	prompt.MaxActivationDistance = 10
 	prompt.Parent                = part
 
-	local capturedKey  = cfg.key
-	local capturedType = cfg.type
+	-- Case ProximityPrompt: client handles open via CaseUI (no server logic here)
+	-- Theme / sound / title ProximityPrompts handled server-side below
+	if not isCase then
+		local capturedKey  = cfg.key
+		local capturedType = cfg.type
 
-	prompt.Triggered:Connect(function(player)
-		local data = PlayerDataManager.PlayerData[player.UserId]
-		if not data then return end
+		prompt.Triggered:Connect(function(player)
+			local data = PlayerDataManager.PlayerData[player.UserId]
+			if not data then return end
 
-		if capturedType == "theme" then
-			local theme = ThemeConfig.Themes[capturedKey]
-			if isOwned(data.OwnedThemes, capturedKey) then
-				data.EquippedTheme = capturedKey
-				PlayerDataManager:SaveData(player)
-				themeDataEvent:FireClient(player, data.OwnedThemes, data.EquippedTheme)
-			elseif data.Coins >= theme.Price then
-				PlayerDataManager:AddCoins(player, -theme.Price)
-				table.insert(data.OwnedThemes, capturedKey)
-				PlayerDataManager:SaveData(player)
-				themeDataEvent:FireClient(player, data.OwnedThemes, data.EquippedTheme)
-				print("[ShopDisplay] " .. player.Name .. " bought theme: " .. capturedKey)
-			else
-				print("[ShopDisplay] " .. player.Name .. " can't afford theme: " .. capturedKey)
-			end
-		elseif capturedType == "sound" then
-			local pack = SoundConfig.Packs[capturedKey]
-			local alreadyOwned = false
-			for _, k in ipairs(data.OwnedSounds) do if k == capturedKey then alreadyOwned = true; break end end
-
-			if not alreadyOwned then
-				if data.Coins < pack.Price then
-					print("[ShopDisplay] " .. player.Name .. " can't afford sound: " .. capturedKey)
+			if capturedType == "theme" then
+				local theme = ThemeConfig.Themes[capturedKey]
+				if isOwned(data.OwnedThemes, capturedKey) then
+					data.EquippedTheme = capturedKey
+					PlayerDataManager:SaveData(player)
+					themeDataEvent:FireClient(player, data.OwnedThemes, data.EquippedTheme)
+				elseif data.Coins >= theme.Price then
+					PlayerDataManager:AddCoins(player, -theme.Price)
+					table.insert(data.OwnedThemes, capturedKey)
+					PlayerDataManager:SaveData(player)
+					themeDataEvent:FireClient(player, data.OwnedThemes, data.EquippedTheme)
+					print("[ShopDisplay] " .. player.Name .. " bought theme: " .. capturedKey)
 				else
-					-- Update memory immediately, save in background
-					data.Coins = data.Coins - pack.Price
-					if player:FindFirstChild("leaderstats") then
-						player.leaderstats.Coins.Value = data.Coins
+					print("[ShopDisplay] " .. player.Name .. " can't afford theme: " .. capturedKey)
+				end
+			elseif capturedType == "sound" then
+				local pack = SoundConfig.Packs[capturedKey]
+				local alreadyOwned = false
+				for _, k in ipairs(data.OwnedSounds) do if k == capturedKey then alreadyOwned = true; break end end
+
+				if not alreadyOwned then
+					if data.Coins < pack.Price then
+						print("[ShopDisplay] " .. player.Name .. " can't afford sound: " .. capturedKey)
+					else
+						data.Coins = data.Coins - pack.Price
+						if player:FindFirstChild("leaderstats") then
+							player.leaderstats.Coins.Value = data.Coins
+						end
+						table.insert(data.OwnedSounds, capturedKey)
+						data.EquippedSound = capturedKey
+						soundDataEvent:FireClient(player, data.OwnedSounds, data.EquippedSound)
+						task.spawn(function() PlayerDataManager:SaveData(player) end)
+						print("[ShopDisplay] " .. player.Name .. " bought sound: " .. capturedKey)
 					end
-					table.insert(data.OwnedSounds, capturedKey)
-					data.EquippedSound = capturedKey
+				else
+					data.EquippedSound = (data.EquippedSound == capturedKey) and "Default" or capturedKey
 					soundDataEvent:FireClient(player, data.OwnedSounds, data.EquippedSound)
 					task.spawn(function() PlayerDataManager:SaveData(player) end)
-					print("[ShopDisplay] " .. player.Name .. " bought sound: " .. capturedKey)
 				end
 			else
-				-- Toggle equip/unequip
-				data.EquippedSound = (data.EquippedSound == capturedKey) and "Default" or capturedKey
-				soundDataEvent:FireClient(player, data.OwnedSounds, data.EquippedSound)
-				task.spawn(function() PlayerDataManager:SaveData(player) end)
-			end
-		else
-			local ok, msg = PlayerDataManager:BuyTitle(player, capturedKey)
-			if ok then
-				PlayerDataManager:EquipTitle(player, capturedKey)
-				local d = PlayerDataManager.PlayerData[player.UserId]
-				titleDataEvent:FireClient(player, d.OwnedTitles, d.EquippedTitle)
-				print("[ShopDisplay] " .. player.Name .. " bought title: " .. capturedKey)
-			elseif msg == "Already owned" then
-				-- Toggle equip/unequip
-				if data.EquippedTitle == capturedKey then
-					PlayerDataManager:EquipTitle(player, "")
-				else
+				local ok, msg = PlayerDataManager:BuyTitle(player, capturedKey)
+				if ok then
 					PlayerDataManager:EquipTitle(player, capturedKey)
+					local d = PlayerDataManager.PlayerData[player.UserId]
+					titleDataEvent:FireClient(player, d.OwnedTitles, d.EquippedTitle)
+					print("[ShopDisplay] " .. player.Name .. " bought title: " .. capturedKey)
+				elseif msg == "Already owned" then
+					if data.EquippedTitle == capturedKey then
+						PlayerDataManager:EquipTitle(player, "")
+					else
+						PlayerDataManager:EquipTitle(player, capturedKey)
+					end
+					local d = PlayerDataManager.PlayerData[player.UserId]
+					titleDataEvent:FireClient(player, d.OwnedTitles, d.EquippedTitle)
+				else
+					print("[ShopDisplay] " .. player.Name .. " can't buy title: " .. capturedKey .. " (" .. msg .. ")")
 				end
-				local d = PlayerDataManager.PlayerData[player.UserId]
-				titleDataEvent:FireClient(player, d.OwnedTitles, d.EquippedTitle)
-			else
-				print("[ShopDisplay] " .. player.Name .. " can't buy title: " .. capturedKey .. " (" .. msg .. ")")
 			end
-		end
-	end)
+		end)
+	end
 
 	table.insert(animated, {
 		part  = part,
 		baseY = cfg.pos.Y,
 		phase = (i - 1) * (math.pi * 2 / #DISPLAYS),
-		speed = isTheme and 0.65 or 0.4,
+		speed = isTheme and 0.65 or (isCase and 0.55 or 0.4),
 	})
 end
 

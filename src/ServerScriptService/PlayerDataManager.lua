@@ -63,6 +63,8 @@ local function getDefaultData()
 		EquippedTitle = "",  -- empty = use IQ auto-title
 		OwnedSounds = {"Default"},
 		EquippedSound = "Default",
+		OwnedWinEffects = {"Default"},
+		EquippedWinEffect = "Default",
 		DailyQuests = defaultQuestData(),
 		HasSeenTutorial = false,
 	}
@@ -99,6 +101,8 @@ function PlayerDataManager:LoadData(player)
 		if not data.EquippedTitle then data.EquippedTitle = "" end
 		if not data.OwnedSounds then data.OwnedSounds = {"Default"} end
 		if not data.EquippedSound then data.EquippedSound = "Default" end
+		if not data.OwnedWinEffects then data.OwnedWinEffects = {"Default"} end
+		if not data.EquippedWinEffect then data.EquippedWinEffect = "Default" end
 		if not data.DailyQuests then data.DailyQuests = defaultQuestData() end
 		if data.HasSeenTutorial == nil then data.HasSeenTutorial = false end
 		-- Reset quest data if quest count changed (e.g. after a quest config update)
