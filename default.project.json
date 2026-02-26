@@ -107,6 +107,12 @@
         },
         "FavouriteDone": {
           "$className": "RemoteEvent"
+        },
+        "ReactionScore": {
+          "$className": "RemoteEvent"
+        },
+        "ReactionLeaderboard": {
+          "$className": "RemoteEvent"
         }
       }
     },
