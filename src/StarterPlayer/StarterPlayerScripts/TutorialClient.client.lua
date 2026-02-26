@@ -199,8 +199,4 @@ local function buildTutorial()
 	screenGui.Parent = playerGui
 end
 
--- Show 2 seconds after load for testing; switch to event-only after confirmed working
-task.wait(2)
-buildTutorial()
-
 showEvent.OnClientEvent:Connect(buildTutorial)

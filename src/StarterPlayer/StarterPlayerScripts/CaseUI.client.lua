@@ -77,7 +77,7 @@ closeBtn.Position              = UDim2.new(0.92, 0, 0.01, 0)
 closeBtn.AnchorPoint           = Vector2.new(0, 0)
 closeBtn.BackgroundColor3      = Color3.fromRGB(180, 40, 40)
 closeBtn.BorderSizePixel       = 0
-closeBtn.Text                  = "✕"
+closeBtn.Text                  = "X"
 closeBtn.TextColor3            = Color3.fromRGB(255, 255, 255)
 closeBtn.TextScaled            = true
 closeBtn.Font                  = Enum.Font.GothamBold
@@ -497,6 +497,16 @@ robuxBtn.Activated:Connect(function()
 	isSpinning = true
 	setButtonsEnabled(false)
 	MarketplaceService:PromptProductPurchase(player, productId)
+end)
+
+-- If the Robux purchase prompt is dismissed without buying, unlock the UI
+MarketplaceService.PromptProductPurchaseFinished:Connect(function(_, productId, wasPurchased)
+	if wasPurchased then return end
+	local caseProductId = RobuxConfig.CaseProduct and RobuxConfig.CaseProduct.ProductId or 0
+	if productId == caseProductId and isSpinning then
+		isSpinning = false
+		setButtonsEnabled(true)
+	end
 end)
 
 closeBtn.Activated:Connect(function()

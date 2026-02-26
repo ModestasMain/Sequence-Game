@@ -8,11 +8,13 @@ local remoteEvents       = ReplicatedStorage:WaitForChild("RemoteEvents")
 local tutorialShowEvent  = remoteEvents:WaitForChild("TutorialShow")
 local tutorialDoneEvent  = remoteEvents:WaitForChild("TutorialDone")
 
--- After data loads, send tutorial if player hasn't seen it
--- TESTING: always show tutorial regardless of flag
+-- After data loads, send tutorial only if player hasn't seen it
 PlayerDataManager.OnDataLoaded.Event:Connect(function(player)
-	task.wait(1) -- let the client finish loading its UI
-	tutorialShowEvent:FireClient(player)
+	local data = PlayerDataManager.PlayerData[player.UserId]
+	if data and not data.HasSeenTutorial then
+		task.wait(1) -- let the client finish loading its UI
+		tutorialShowEvent:FireClient(player)
+	end
 end)
 
 -- Mark tutorial as seen when the player dismisses it

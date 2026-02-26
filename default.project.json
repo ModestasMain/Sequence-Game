@@ -101,6 +101,12 @@
         },
         "CaseResult": {
           "$className": "RemoteEvent"
+        },
+        "FavouriteShow": {
+          "$className": "RemoteEvent"
+        },
+        "FavouriteDone": {
+          "$className": "RemoteEvent"
         }
       }
     },

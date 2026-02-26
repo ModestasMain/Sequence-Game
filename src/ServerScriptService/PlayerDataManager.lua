@@ -67,6 +67,7 @@ local function getDefaultData()
 		EquippedWinEffect = "Default",
 		DailyQuests = defaultQuestData(),
 		HasSeenTutorial = false,
+		HasSeenFavouritePrompt = false,
 	}
 end
 
@@ -105,6 +106,7 @@ function PlayerDataManager:LoadData(player)
 		if not data.EquippedWinEffect then data.EquippedWinEffect = "Default" end
 		if not data.DailyQuests then data.DailyQuests = defaultQuestData() end
 		if data.HasSeenTutorial == nil then data.HasSeenTutorial = false end
+		if data.HasSeenFavouritePrompt == nil then data.HasSeenFavouritePrompt = false end
 		-- Reset quest data if quest count changed (e.g. after a quest config update)
 		local n = #QuestConfig.QUESTS
 		if not data.DailyQuests.Progress or #data.DailyQuests.Progress ~= n then
