@@ -3,8 +3,9 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
-local PlayerDataManager = require(script.Parent:WaitForChild("PlayerDataManager"))
-local StreakAnnouncer   = require(script.Parent:WaitForChild("StreakAnnouncer"))
+local PlayerDataManager  = require(script.Parent:WaitForChild("PlayerDataManager"))
+local StreakAnnouncer    = require(script.Parent:WaitForChild("StreakAnnouncer"))
+local BattlePassManager  = require(script.Parent:WaitForChild("BattlePassManager"))
 
 -- Remote Events
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -442,6 +443,10 @@ function GameSession:EndGame(loser, forced)
 			PlayerDataManager:UpdateQuestProgress(p, "play_1v1", 1)
 		end
 	end
+
+	-- Award Battle Pass XP
+	if winner then BattlePassManager.AddXP(winner, "WIN_1V1") end
+	BattlePassManager.AddXP(loser, "LOSS_1V1")
 
 	-- Update IQ ratings (ELO-style)
 	if winner then

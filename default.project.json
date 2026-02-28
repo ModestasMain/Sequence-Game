@@ -119,6 +119,15 @@
         },
         "StreakAnnounce": {
           "$className": "RemoteEvent"
+        },
+        "BattlePassData": {
+          "$className": "RemoteEvent"
+        },
+        "ClaimBattlePassTier": {
+          "$className": "RemoteEvent"
+        },
+        "BuyBattlePassPremium": {
+          "$className": "RemoteEvent"
         }
       }
     },
@@ -137,6 +146,13 @@
       "QuestUI": {
         "$className": "ScreenGui",
         "$path": "src/StarterGui/QuestUI"
+      },
+      "BattlePassUI": {
+        "$className": "ScreenGui",
+        "$path": "src/StarterGui/BattlePassUI",
+        "ToggleEvent": {
+          "$className": "BindableEvent"
+        }
       }
     },
     "StarterPlayer": {

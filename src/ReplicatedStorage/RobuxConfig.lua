@@ -61,6 +61,15 @@ RobuxConfig.CaseProduct = {
 	ProductId = 3542871199,  -- paste your Developer Product ID here
 }
 
+-- ── Battle Pass (Developer Product — per season) ──────────────────────────
+-- Set ProductId once you create the Developer Product in Creator Dashboard.
+-- Keep in sync with BattlePassConfig.PREMIUM_PRODUCT_ID.
+RobuxConfig.BattlePassProduct = {
+	Name      = "Battle Pass",
+	Robux     = 399,
+	ProductId = 3546780752,
+}
+
 -- ── Sound Pack Game Passes ─────────────────────────────────────────────────────
 RobuxConfig.SoundPasses = {
 	Piano      = { PassId = 1720813462, Robux = 75  },

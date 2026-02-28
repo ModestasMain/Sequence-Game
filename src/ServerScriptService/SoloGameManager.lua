@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
+local BattlePassManager = require(game.ServerScriptService:WaitForChild("BattlePassManager"))
 
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 local sequenceShowEvent = remoteEvents:WaitForChild("SequenceShow")
@@ -322,8 +323,11 @@ function SoloSession:EndGame(forced)
 
 	PlayerDataManager:UpdateHighestSequence(self.Player, self.SequenceLength)
 
-	-- Quest: play 1 solo game
-	PlayerDataManager:UpdateQuestProgress(self.Player, "play_solo", 1)
+	-- Battle Pass XP + solo quest: only if they genuinely played (completed at least 5 tiles)
+	if self.PeakSequence >= 5 then
+		BattlePassManager.AddXP(self.Player, "SOLO_PLAYED")
+		PlayerDataManager:UpdateQuestProgress(self.Player, "play_solo", 1)
+	end
 
 	-- Quest: reach sequence milestones (uses PeakSequence = highest completed this session)
 	PlayerDataManager:UpdateQuestProgress(self.Player, "solo_seq_8",  self.PeakSequence)

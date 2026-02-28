@@ -28,6 +28,14 @@ TitleConfig.ShopOrder = {
 	"TheChosenOne",
 }
 
+-- Battle Pass exclusive titles — not in the shop, earned through the pass
+TitleConfig.BattlePassTitles = {
+	SeasonRookie    = { Name = "Season Rookie",    Color = Color3.fromRGB(100, 210, 100) },
+	Tactician       = { Name = "Tactician",        Color = Color3.fromRGB(80,  150, 255) },
+	EliteTactician  = { Name = "Elite Tactician",  Color = Color3.fromRGB(180,  80, 255) },
+	SeasonVeteran   = { Name = "Season Veteran",   Color = Color3.fromRGB(255, 215,   0) },
+}
+
 TitleConfig.Titles = {
 	-- ── Funny / Cheap ───────────────────────────────────────────────────────
 	BrainRot = {
@@ -81,7 +89,7 @@ TitleConfig.Titles = {
 -- Returns the title text and color for a given IQ + optional equipped title key
 function TitleConfig.GetTitle(iq, equippedKey)
 	if equippedKey and equippedKey ~= "" then
-		local t = TitleConfig.Titles[equippedKey]
+		local t = TitleConfig.Titles[equippedKey] or TitleConfig.BattlePassTitles[equippedKey]
 		if t then return t.Name, t.Color end
 	end
 	for _, tier in ipairs(TitleConfig.IQTiers) do

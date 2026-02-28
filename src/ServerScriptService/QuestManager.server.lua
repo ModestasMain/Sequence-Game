@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
+local BattlePassManager = require(game.ServerScriptService:WaitForChild("BattlePassManager"))
 
 local remoteEvents            = ReplicatedStorage:WaitForChild("RemoteEvents")
 local questUpdateEvent        = remoteEvents:WaitForChild("QuestUpdate")
@@ -30,7 +31,10 @@ end)
 -- Handle quest claim requests from the client
 claimQuestEvent.OnServerEvent:Connect(function(player, questIndex)
 	if type(questIndex) ~= "number" then return end
-	PlayerDataManager:ClaimQuest(player, questIndex)
+	local success = PlayerDataManager:ClaimQuest(player, questIndex)
+	if success then
+		BattlePassManager.AddXP(player, "QUEST_CLAIMED")
+	end
 end)
 
 print("[Quest] QuestManager loaded")

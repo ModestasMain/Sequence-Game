@@ -18,6 +18,8 @@ local soundDataEvent  = remoteEvents:WaitForChild("SoundData")
 
 -- CaseGranted BindableEvent is created by CaseManager; wait for it
 local caseGrantedEvent = game.ServerScriptService:WaitForChild("CaseGranted", 30)
+-- BattlePassGranted BindableEvent is created by BattlePassManager; wait for it
+local bpGrantedEvent = game.ServerScriptService:WaitForChild("BattlePassGranted", 30)
 
 -- ── Grant helpers ──────────────────────────────────────────────────────────────
 
@@ -102,6 +104,15 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 		pcall(function() IQOrderedStore:SetAsync(tostring(player.UserId), 100) end)
 		PlayerDataManager:DebouncedSave(player)
 		print(string.format("[Robux] %s reset IQ to 100", player.Name))
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+
+	-- Battle Pass premium
+	if RobuxConfig.BattlePassProduct and RobuxConfig.BattlePassProduct.ProductId == productId and productId ~= 0 then
+		if bpGrantedEvent then
+			bpGrantedEvent:Fire(player)
+			print(string.format("[Robux] %s purchased Battle Pass premium", player.Name))
+		end
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 

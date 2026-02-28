@@ -71,6 +71,11 @@ local function getDefaultData()
 		DailyQuests = defaultQuestData(),
 		HasSeenTutorial = false,
 		HasSeenFavouritePrompt = false,
+		BattlePassXP             = 0,
+		BattlePassFreeClaimed    = {},  -- sparse: {[tier]=true}
+		BattlePassPremiumClaimed = {},  -- sparse: {[tier]=true}
+		BattlePassPremium        = false,
+		BattlePassSeason         = 0,   -- season number when premium was granted
 	}
 end
 
@@ -111,6 +116,11 @@ function PlayerDataManager:LoadData(player)
 		if not data.DailyQuests then data.DailyQuests = defaultQuestData() end
 		if data.HasSeenTutorial == nil then data.HasSeenTutorial = false end
 		if data.HasSeenFavouritePrompt == nil then data.HasSeenFavouritePrompt = false end
+		if data.BattlePassXP             == nil then data.BattlePassXP             = 0     end
+		if data.BattlePassFreeClaimed    == nil then data.BattlePassFreeClaimed    = {}    end
+		if data.BattlePassPremiumClaimed == nil then data.BattlePassPremiumClaimed = {}    end
+		if data.BattlePassPremium        == nil then data.BattlePassPremium        = false end
+		if data.BattlePassSeason         == nil then data.BattlePassSeason         = 0     end
 		-- Reset quest data if quest count changed (e.g. after a quest config update)
 		local n = #QuestConfig.QUESTS
 		if not data.DailyQuests.Progress or #data.DailyQuests.Progress ~= n then
