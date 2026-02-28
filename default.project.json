@@ -116,6 +116,9 @@
         },
         "IQMilestoneAnnounce": {
           "$className": "RemoteEvent"
+        },
+        "StreakAnnounce": {
+          "$className": "RemoteEvent"
         }
       }
     },

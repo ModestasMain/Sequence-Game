@@ -1,5 +1,5 @@
 -- AnnouncementBanner.client.lua
--- Shows a sliding top-of-screen toast when any player hits an IQ milestone.
+-- Shows a sliding bottom toast for IQ milestones and win streaks.
 --!strict
 
 local Players           = game:GetService("Players")
@@ -11,6 +11,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local remoteEvents    = ReplicatedStorage:WaitForChild("RemoteEvents")
 local announceEvent   = remoteEvents:WaitForChild("IQMilestoneAnnounce")
+local streakEvent     = remoteEvents:WaitForChild("StreakAnnounce")
 local TitleConfig     = require(ReplicatedStorage:WaitForChild("TitleConfig"))
 
 -- ── Milestone flavour — uses the same IQ tier names as the game ────────────
@@ -24,7 +25,8 @@ end
 local currentGui: ScreenGui? = nil
 local dismissThread: thread? = nil
 
-local function showBanner(playerName: string, iq: number)
+-- mainText: top line, badgeText: bottom coloured label, iconEmoji, accentColor
+local function showBanner(mainText: string, badgeText: string, iconEmoji: string, accentColor: Color3)
 	-- Destroy any existing banner
 	if currentGui and currentGui.Parent then
 		currentGui:Destroy()
@@ -34,12 +36,9 @@ local function showBanner(playerName: string, iq: number)
 		dismissThread = nil
 	end
 
-	local label, accentColor = getMilestoneLabel(iq)
-	local isLocal = (playerName == player.Name)
-
 	-- ── Build GUI ──
 	local gui = Instance.new("ScreenGui")
-	gui.Name           = "IQMilestoneBanner"
+	gui.Name           = "AnnouncementBanner"
 	gui.IgnoreGuiInset = true
 	gui.ResetOnSpawn   = false
 	gui.DisplayOrder   = 120
@@ -51,13 +50,13 @@ local function showBanner(playerName: string, iq: number)
 	local bar = Instance.new("Frame", gui)
 	bar.Size             = UDim2.new(0.42, 0, 0.07, 0)
 	bar.AnchorPoint      = Vector2.new(0.5, 1)
-	bar.Position         = UDim2.fromScale(0.5, 1.08)  -- starts off-screen below, centered
+	bar.Position         = UDim2.fromScale(0.5, 1.08)  -- starts off-screen below
 	bar.BackgroundColor3 = Color3.fromRGB(10, 10, 16)
 	bar.BorderSizePixel  = 0
 	bar.ZIndex           = 2
 	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 10)
 
-	-- Accent line along the bottom of the bar
+	-- Accent line at the top of the bar
 	local accent = Instance.new("Frame", bar)
 	accent.Size             = UDim2.new(1, 0, 0, 3)
 	accent.Position         = UDim2.new(0, 0, 0, 0)
@@ -70,7 +69,7 @@ local function showBanner(playerName: string, iq: number)
 	icon.Size                   = UDim2.new(0.1, 0, 1, 0)
 	icon.Position               = UDim2.fromScale(0.02, 0)
 	icon.BackgroundTransparency = 1
-	icon.Text                   = "🧠"
+	icon.Text                   = iconEmoji
 	icon.TextScaled             = true
 	icon.ZIndex                 = 3
 
@@ -84,13 +83,9 @@ local function showBanner(playerName: string, iq: number)
 	msg.TextXAlignment         = Enum.TextXAlignment.Left
 	msg.ZIndex                 = 3
 	msg.TextColor3             = Color3.fromRGB(240, 240, 240)
-	if isLocal then
-		msg.Text = string.format("You reached %d IQ!", iq)
-	else
-		msg.Text = string.format("%s reached %d IQ!", playerName, iq)
-	end
+	msg.Text                   = mainText
 
-	-- Label badge
+	-- Badge label
 	local badge = Instance.new("TextLabel", bar)
 	badge.Size                   = UDim2.new(0.78, 0, 0.38, 0)
 	badge.Position               = UDim2.fromScale(0.14, 0.58)
@@ -100,7 +95,7 @@ local function showBanner(playerName: string, iq: number)
 	badge.TextXAlignment         = Enum.TextXAlignment.Left
 	badge.ZIndex                 = 3
 	badge.TextColor3             = accentColor
-	badge.Text                   = label
+	badge.Text                   = badgeText
 
 	-- ── Slide in ──
 	TweenService:Create(bar, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -119,8 +114,29 @@ local function showBanner(playerName: string, iq: number)
 	end)
 end
 
+-- ── Streak flavour ──────────────────────────────────────────────────────────
+
+local function getStreakColor(streak: number): Color3
+	if streak >= 20 then return Color3.fromRGB(255, 215,   0) end  -- gold
+	if streak >= 10 then return Color3.fromRGB(255, 100,  30) end  -- deep orange
+	if streak >= 5  then return Color3.fromRGB(255, 160,  30) end  -- orange
+	return                     Color3.fromRGB(255, 200, 100)        -- light orange
+end
+
 -- ── Listen ──────────────────────────────────────────────────────────────────
 
 announceEvent.OnClientEvent:Connect(function(playerName: string, iq: number)
-	showBanner(playerName, iq)
+	local label, accentColor = getMilestoneLabel(iq)
+	local isLocal = (playerName == player.Name)
+	local mainText = isLocal
+		and string.format("You reached %d IQ!", iq)
+		or  string.format("%s reached %d IQ!", playerName, iq)
+	showBanner(mainText, label, "🧠", accentColor)
+end)
+
+streakEvent.OnClientEvent:Connect(function(playerName: string, streak: number, msg: string)
+	local isLocal  = (playerName == player.Name)
+	local color    = getStreakColor(streak)
+	local mainText = isLocal and ("You " .. msg) or (playerName .. " " .. msg)
+	showBanner(mainText, tostring(streak) .. "-WIN STREAK", "🔥", color)
 end)

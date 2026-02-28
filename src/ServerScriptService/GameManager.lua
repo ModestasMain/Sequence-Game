@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local PlayerDataManager = require(script.Parent:WaitForChild("PlayerDataManager"))
+local StreakAnnouncer   = require(script.Parent:WaitForChild("StreakAnnouncer"))
 
 -- Remote Events
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -445,6 +446,7 @@ function GameSession:EndGame(loser, forced)
 	-- Update IQ ratings (ELO-style)
 	if winner then
 		PlayerDataManager:UpdateIQ(winner, loser)
+		StreakAnnouncer.CheckAndAnnounce(winner, winnerStreak)
 	end
 
 	if forced then
