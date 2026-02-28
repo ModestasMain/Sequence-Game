@@ -145,7 +145,10 @@
       },
       "QuestUI": {
         "$className": "ScreenGui",
-        "$path": "src/StarterGui/QuestUI"
+        "$path": "src/StarterGui/QuestUI",
+        "ToggleEvent": {
+          "$className": "BindableEvent"
+        }
       },
       "BattlePassUI": {
         "$className": "ScreenGui",
