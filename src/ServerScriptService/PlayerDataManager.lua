@@ -10,7 +10,8 @@ local IQOrderedStore           = DataStoreService:GetOrderedDataStore("Leaderboa
 local CoinsOrderedStore        = DataStoreService:GetOrderedDataStore("Leaderboard_Coins")
 local SoloHighScoreOrderedStore = DataStoreService:GetOrderedDataStore("Leaderboard_SoloHighScore")
 
-local QuestConfig = require(game.ReplicatedStorage:WaitForChild("QuestConfig"))
+local QuestConfig         = require(game.ReplicatedStorage:WaitForChild("QuestConfig"))
+local MilestoneAnnouncer  = require(script.Parent:WaitForChild("MilestoneAnnouncer"))
 
 local function syncStat(store, userId, value)
 	pcall(function()
@@ -24,6 +25,8 @@ PlayerDataManager.OnDataLoaded = Instance.new("BindableEvent") -- Fires when a p
 
 -- Debounced save: collapses rapid successive saves into one write
 local pendingSaves = {}
+-- Tracks players whose data failed to load — we must NOT save defaults over real data
+local loadFailed = {}
 function PlayerDataManager:DebouncedSave(player)
 	if pendingSaves[player.UserId] then
 		task.cancel(pendingSaves[player.UserId])
@@ -92,6 +95,7 @@ function PlayerDataManager:LoadData(player)
 	end)
 
 	if success and data then
+		loadFailed[player.UserId] = nil
 		-- Migrate old data
 		if not data.IQ then data.IQ = 100 end
 		if not data.Streak then data.Streak = 0 end
@@ -116,7 +120,8 @@ function PlayerDataManager:LoadData(player)
 		self.PlayerData[player.UserId] = data
 	else
 		self.PlayerData[player.UserId] = getDefaultData()
-		warn("Could not load data for " .. player.Name .. ", using defaults")
+		loadFailed[player.UserId] = true
+		warn("Could not load data for " .. player.Name .. ", using defaults — save blocked to prevent data wipe")
 	end
 
 	-- Reset quests if daily window has passed
@@ -145,6 +150,10 @@ end
 function PlayerDataManager:SaveData(player)
 	local data = self.PlayerData[player.UserId]
 	if not data then return end
+	if loadFailed[player.UserId] then
+		warn("Save blocked for " .. player.Name .. " — data was not loaded successfully")
+		return
+	end
 
 	local success, err = pcall(function()
 		PlayerDataStore:SetAsync("Player_" .. player.UserId, data)
@@ -325,6 +334,9 @@ function PlayerDataManager:UpdateIQ(winner, loser)
 	-- Update IQs (minimum IQ is 1)
 	winnerData.IQ = math.max(1, winnerIQ + winnerGain)
 	loserData.IQ = math.max(1, loserIQ + loserLoss)
+
+	-- Broadcast milestone if winner crossed one
+	MilestoneAnnouncer.CheckAndAnnounce(winner, winnerIQ, winnerData.IQ)
 
 	-- Update leaderstats
 	if winner:FindFirstChild("leaderstats") and winner.leaderstats:FindFirstChild("IQ") then
@@ -515,6 +527,20 @@ game.Players.PlayerRemoving:Connect(function(player)
 	end
 	PlayerDataManager:SaveData(player)
 	PlayerDataManager.PlayerData[player.UserId] = nil
+	loadFailed[player.UserId] = nil
+end)
+
+-- Ensure all in-memory data is saved before the server shuts down.
+-- Without this, PlayerRemoving fires but the server may kill the process
+-- before SetAsync calls complete, losing the last minutes of player progress.
+game:BindToClose(function()
+	for _, player in ipairs(game.Players:GetPlayers()) do
+		if pendingSaves[player.UserId] then
+			task.cancel(pendingSaves[player.UserId])
+			pendingSaves[player.UserId] = nil
+		end
+		PlayerDataManager:SaveData(player)
+	end
 end)
 
 -- Load data for any players already in game.

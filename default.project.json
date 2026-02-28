@@ -113,6 +113,9 @@
         },
         "ReactionLeaderboard": {
           "$className": "RemoteEvent"
+        },
+        "IQMilestoneAnnounce": {
+          "$className": "RemoteEvent"
         }
       }
     },
