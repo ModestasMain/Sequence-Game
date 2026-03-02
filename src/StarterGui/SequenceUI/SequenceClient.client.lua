@@ -4,6 +4,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
+local RunService        = game:GetService("RunService")
+local StarterGui        = game:GetService("StarterGui")
 local player            = Players.LocalPlayer
 
 local GameConfig      = require(ReplicatedStorage:WaitForChild("GameConfig"))
@@ -13,6 +15,7 @@ local WinEffectConfig = require(ReplicatedStorage:WaitForChild("WinEffectConfig"
 
 -- Remote Events
 local remoteEvents          = ReplicatedStorage:WaitForChild("RemoteEvents")
+local cameraFocusEvent      = remoteEvents:WaitForChild("CameraFocus")
 local sequenceShowEvent     = remoteEvents:WaitForChild("SequenceShow")
 local playerInputEvent      = remoteEvents:WaitForChild("PlayerInput")
 local gameResultEvent       = remoteEvents:WaitForChild("GameResult")
@@ -26,6 +29,7 @@ local themeDataEvent        = remoteEvents:WaitForChild("ThemeData")
 local soundDataEvent        = remoteEvents:WaitForChild("SoundData")
 local playWinSoundEvent     = remoteEvents:WaitForChild("PlayWinSound")
 local winEffectDataEvent    = remoteEvents:WaitForChild("WinEffectData")
+local quitSoloGameEvent     = remoteEvents:WaitForChild("QuitSoloGame", 10)
 
 -- Theme state
 local currentTheme = ThemeConfig.Themes["Default"]
@@ -96,28 +100,43 @@ local playerGui = player:WaitForChild("PlayerGui")
 local screenGui = playerGui:WaitForChild("SequenceUI")
 screenGui.ResetOnSpawn = false
 
+-- ── Leave button (solo game only) ────────────────────────────────────────────
+-- Shown during a game session so the player has a clean exit without needing reset.
+-- The Roblox reset button is disabled for the duration of the session.
+local leaveButton = Instance.new("TextButton")
+leaveButton.Name                  = "SoloLeaveButton"
+leaveButton.Size                  = UDim2.new(0.12, 0, 0.058, 0)
+leaveButton.Position              = UDim2.new(0.5, 0, 0.005, 0)
+leaveButton.AnchorPoint           = Vector2.new(0.5, 0)
+leaveButton.BackgroundColor3      = Color3.fromRGB(180, 40, 40)
+leaveButton.BackgroundTransparency = 0.1
+leaveButton.Text                  = "Leave"
+leaveButton.TextColor3            = Color3.fromRGB(255, 255, 255)
+leaveButton.TextScaled            = true
+leaveButton.Font                  = Enum.Font.GothamBold
+leaveButton.BorderSizePixel       = 0
+leaveButton.ZIndex                = 10
+leaveButton.Visible               = false
+leaveButton.Parent                = screenGui
+local _leaveCorner = Instance.new("UICorner")
+_leaveCorner.CornerRadius = UDim.new(0.3, 0)
+_leaveCorner.Parent       = leaveButton
+
+leaveButton.MouseButton1Click:Connect(function()
+	quitSoloGameEvent:FireServer()
+end)
+
 -- ══════════════════════════════════════════════════════════════════════════════
 --  MAIN PANEL
 -- ══════════════════════════════════════════════════════════════════════════════
+-- Full-screen transparent HUD — the dark panel is gone, 3D tiles handle the game display
 local mainFrame = Instance.new("Frame")
 mainFrame.Name                = "MainFrame"
-mainFrame.AnchorPoint         = Vector2.new(0.5, 0.5)
-mainFrame.Position            = UDim2.new(0.5, 0, 0.5, 0)
-mainFrame.Size                = UDim2.new(0, 0, 0.78, 0)
-mainFrame.BackgroundColor3    = currentTheme.Colors.Panel
+mainFrame.Size                = UDim2.new(1, 0, 1, 0)
+mainFrame.BackgroundTransparency = 1
 mainFrame.BorderSizePixel     = 0
 mainFrame.Visible             = false
 mainFrame.Parent              = screenGui
-
-local frameAspect = Instance.new("UIAspectRatioConstraint")
-frameAspect.AspectRatio  = 0.78
-frameAspect.AspectType   = Enum.AspectType.ScaleWithParentSize
-frameAspect.DominantAxis = Enum.DominantAxis.Height
-frameAspect.Parent = mainFrame
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0.025, 0)
-corner.Parent = mainFrame
 
 -- ── Top row: Lives + Timer ────────────────────────────────────────────────
 
@@ -320,8 +339,7 @@ local function ApplyTheme(themeKey)
 	if not theme then return end
 	currentTheme = theme
 
-	-- Panel + square colors
-	mainFrame.BackgroundColor3 = theme.Colors.Panel
+	-- Square colors (panel background removed — 3D tiles are the display)
 	for _, btn in pairs(gridButtons) do
 		btn.BackgroundColor3 = theme.Colors.Square
 	end
@@ -744,7 +762,7 @@ end
 
 function ShowFeedback(isCorrect)
 	canInput = false
-	local color = isCorrect and currentTheme.Colors.Active or currentTheme.Colors.Wrong
+	local color = isCorrect and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 50, 50)
 	for _, button in pairs(gridButtons) do
 		button.BackgroundColor3 = color
 	end
@@ -753,7 +771,12 @@ function ShowFeedback(isCorrect)
 
 	-- Play theme correct/wrong sound
 	if isCorrect then
-		if correctSound.SoundId ~= "" then correctSound:Play() end
+		if correctSound.SoundId ~= "" then
+			correctSound:Play()
+		else
+			-- Default pack fallback: play the highest-pitched tile note as a success ding
+			playClickSound(#PITCH_MAP)
+		end
 	else
 		if wrongSound.SoundId ~= "" then wrongSound:Play() end
 	end
@@ -833,8 +856,11 @@ end
 showGameUIEvent.OnClientEvent:Connect(function(show, gridSize)
 	if show then
 		rebuildGrid(gridSize or GameConfig.GRID_SIZE)
+		-- Disable Roblox reset button during solo session; player uses Leave button instead
+		pcall(function() StarterGui:SetCore("ResetButtonCallback", false) end)
+		leaveButton.Visible = true
 	end
-	mainFrame.Visible  = show
+	-- mainFrame intentionally not shown — 3D tiles handle the game display
 	winOverlay.Visible = false
 	if not show then
 		canInput          = false
@@ -847,6 +873,9 @@ showGameUIEvent.OnClientEvent:Connect(function(show, gridSize)
 		for _, h in ipairs(p1HeartLabels) do h.TextColor3 = currentTheme.Colors.HeartAlive end
 		for _, h in ipairs(p2HeartLabels) do h.Visible = false; h.TextColor3 = currentTheme.Colors.HeartAlive end
 		statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		-- Re-enable reset and hide Leave button when the session ends
+		pcall(function() StarterGui:SetCore("ResetButtonCallback", true) end)
+		leaveButton.Visible = false
 	end
 end)
 
@@ -922,6 +951,139 @@ updateTimerEvent.OnClientEvent:Connect(function(timeRemaining, state)
 		end
 		timerDisplay.TextColor3 = color
 	end
+end)
+
+-- ── Camera focus / Focus mode ────────────────────────────────────────────────
+
+local FOCUS_HIDDEN_UIS = { "ButtonsUI", "StatsUI", "QuestUI", "BattlePassUI" }
+local hiddenUIState  = {}
+local inFocusMode    = false
+local activeCamTween = nil   -- current camera tween, cancelled on reset
+
+local function setWorldBillboards(enabled)
+	-- Platform "Solo Mode / In Progress" signs
+	for _, desc in ipairs(workspace:GetDescendants()) do
+		if desc:IsA("BillboardGui") and desc.Name == "PlatformBillboard" then
+			desc.Enabled = enabled
+		end
+	end
+	-- Name tags above all characters
+	for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+		local char = p.Character
+		if char then
+			local head = char:FindFirstChild("Head")
+			if head then
+				local tag = head:FindFirstChild("NameTag")
+				if tag then tag.Enabled = enabled end
+			end
+		end
+	end
+end
+
+local function setFocusMode(enabled)
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then return end
+	if enabled then
+		hiddenUIState = {}
+		for _, name in ipairs(FOCUS_HIDDEN_UIS) do
+			local gui = playerGui:FindFirstChild(name)
+			if gui then
+				hiddenUIState[name] = gui.Enabled
+				gui.Enabled = false
+			end
+		end
+		setWorldBillboards(false)
+	else
+		for _, name in ipairs(FOCUS_HIDDEN_UIS) do
+			local gui = playerGui:FindFirstChild(name)
+			if gui and hiddenUIState[name] ~= nil then
+				gui.Enabled = hiddenUIState[name]
+			end
+		end
+		hiddenUIState = {}
+		setWorldBillboards(true)
+	end
+end
+
+local function restoreCamera()
+	inFocusMode = false
+	if activeCamTween then
+		activeCamTween:Cancel()
+		activeCamTween = nil
+	end
+	camera = workspace.CurrentCamera
+	setFocusMode(false)
+	camera.FieldOfView = 70
+	local char = player.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			camera.CameraSubject = humanoid
+		end
+	end
+	camera.CameraType = Enum.CameraType.Custom
+end
+
+cameraFocusEvent.OnClientEvent:Connect(function(farCF, closeCF)
+	inFocusMode = true
+	setFocusMode(true)
+	camera.CameraType = Enum.CameraType.Scriptable
+	-- Step 1: sweep to overhead view
+	local t1 = TweenService:Create(camera,
+		TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ CFrame = farCF })
+	activeCamTween = t1
+	t1:Play()
+	t1.Completed:Wait()
+	-- Bail out if player reset before step 2 starts
+	if not inFocusMode then return end
+	-- Step 2: zoom in so the table fills the screen
+	local t2 = TweenService:Create(camera,
+		TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ CFrame = closeCF, FieldOfView = 50 })
+	activeCamTween = t2
+	t2:Play()
+end)
+
+showGameUIEvent.OnClientEvent:Connect(function(show)
+	if not show then
+		task.delay(0.3, restoreCamera)
+	end
+end)
+
+-- Play tile sound when a 3D solo tile is clicked (server fires this after ClickDetector)
+playerInputEvent.OnClientEvent:Connect(function(position)
+	playClickSound(position)
+end)
+
+-- Watchdog: if the camera is stuck in Scriptable mode while not in focus mode, force
+-- it back to Custom so the player isn't left in the overhead table view.
+RunService.RenderStepped:Connect(function()
+	if not inFocusMode and workspace.CurrentCamera.CameraType == Enum.CameraType.Scriptable then
+		workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+		camera = workspace.CurrentCamera
+	end
+end)
+
+-- On character removing: clear focus state. Reset is blocked during games so this
+-- should only fire if the player somehow dies from a non-reset cause.
+player.CharacterRemoving:Connect(function()
+	inFocusMode = false
+	if activeCamTween then
+		activeCamTween:Cancel()
+		activeCamTween = nil
+	end
+	setFocusMode(false)
+end)
+
+-- On respawn: hand the new humanoid to the camera so it doesn't stay locked on the
+-- old one from the solo session.
+player.CharacterAdded:Connect(function(character)
+	inFocusMode = false
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then return end
+	workspace.CurrentCamera.CameraSubject = humanoid
+	workspace.CurrentCamera.CameraType    = Enum.CameraType.Custom
 end)
 
 print("SequenceClient loaded for " .. player.Name)

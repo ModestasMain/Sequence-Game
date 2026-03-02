@@ -3,6 +3,18 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
+local ThemeConfig = require(ReplicatedStorage:WaitForChild("ThemeConfig"))
+local PlayerDataManager = require(game.ServerScriptService:WaitForChild("PlayerDataManager"))
+
+local remoteEvents    = ReplicatedStorage:WaitForChild("RemoteEvents")
+local cameraFocusEvent = remoteEvents:WaitForChild("CameraFocus")
+
+-- Ensure QuitSoloGame exists at server startup so clients can WaitForChild it immediately
+if not remoteEvents:FindFirstChild("QuitSoloGame") then
+	local e = Instance.new("RemoteEvent")
+	e.Name   = "QuitSoloGame"
+	e.Parent = remoteEvents
+end
 
 local SoloJoinScreenManager = {}
 
@@ -13,6 +25,9 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	local gui = joinScreen:FindFirstChild("JoinGui")
 	local joinPrompt = joinScreen:FindFirstChild("JoinPrompt")
 	if not gui or not joinPrompt then return end
+
+	-- Hide the SurfaceGui panel — 3D tiles now handle the game display
+	gui.Enabled = false
 
 	-- Update prompt text for solo
 	joinPrompt.ActionText = "Play Solo"
@@ -239,7 +254,19 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	-- === LivePreview API (called by SoloGameManager) ===
 	local LivePreview = {}
 
-	function LivePreview:Show(playerName)
+	-- Tracks the active theme colors; reset to defaults when no game is running
+	local lpColors = {
+		Square    = GameConfig.SQUARE_DEFAULT_COLOR,
+		Highlight = GameConfig.SQUARE_HIGHLIGHT_COLOR,
+		Active    = GameConfig.SQUARE_ACTIVE_COLOR,
+	}
+
+	function LivePreview:Show(playerName, themeColors)
+		if themeColors then
+			lpColors.Square    = themeColors.Square
+			lpColors.Highlight = themeColors.Highlight
+			lpColors.Active    = themeColors.Active
+		end
 		liveBadge.Visible = true
 		previewInfoLabel.Text = playerName .. " — Solo Run"
 		previewLivesLabel.Text = "Lives: " .. string.rep("♥", GameConfig.STARTING_LIVES)
@@ -250,6 +277,9 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 	end
 
 	function LivePreview:Hide()
+		lpColors.Square    = GameConfig.SQUARE_DEFAULT_COLOR
+		lpColors.Highlight = GameConfig.SQUARE_HIGHLIGHT_COLOR
+		lpColors.Active    = GameConfig.SQUARE_ACTIVE_COLOR
 		liveBadge.Visible = false
 		previewInfoLabel.Text = "Solo Mode"
 		previewLivesLabel.Text = "How far can you go?"
@@ -267,22 +297,23 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 
 	function LivePreview:ResetSquare(position)
 		if previewSquares[position] then
-			previewSquares[position].BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+			previewSquares[position].BackgroundColor3 = lpColors.Square
 		end
 	end
 
 	function LivePreview:ResetAllSquares()
 		for _, sq in pairs(previewSquares) do
-			sq.BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+			sq.BackgroundColor3 = lpColors.Square
 		end
 	end
 
 	function LivePreview:ShowClickFlash(position)
 		if previewSquares[position] then
-			previewSquares[position].BackgroundColor3 = GameConfig.SQUARE_ACTIVE_COLOR
+			previewSquares[position].BackgroundColor3 = lpColors.Active
+			local squareColor = lpColors.Square
 			task.delay(0.12, function()
 				if previewSquares[position] then
-					previewSquares[position].BackgroundColor3 = GameConfig.SQUARE_DEFAULT_COLOR
+					previewSquares[position].BackgroundColor3 = squareColor
 				end
 			end)
 		end
@@ -351,12 +382,36 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 			if hrp then
 				local standPos = leftPart.Position + Vector3.new(0, leftPart.Size.Y / 2 + 2.5, 0)
 				local centerPos = Vector3.new(joinScreen.Position.X, standPos.Y, joinScreen.Position.Z)
-				hrp.CFrame = CFrame.lookAt(standPos, centerPos)
+					hrp.CFrame = CFrame.lookAt(standPos, centerPos) * CFrame.Angles(0, math.pi/2, 0)
 			end
 		end
+		-- Look up player's equipped theme
+		local playerData = PlayerDataManager.PlayerData[player.UserId]
+		local equippedKey = (playerData and playerData.EquippedTheme) or "Default"
+		local themeEntry = ThemeConfig.Themes[equippedKey] or ThemeConfig.Themes.Default
+		-- Merge Colors + Icon into one table so SoloSession has everything it needs
+		local src = themeEntry.Colors
+		local themeColors = {
+			Square    = src.Square,
+			Highlight = src.Highlight,
+			Active    = src.Active,
+			Wrong     = src.Wrong,
+			HeartAlive = src.HeartAlive,
+			HeartDead  = src.HeartDead,
+			Icon      = themeEntry.SquareIcon or "",
+		}
 
-		-- Switch to live preview immediately
-		LivePreview:Show(player.Name)
+		-- Switch to live preview immediately with theme colors
+		LivePreview:Show(player.Name, themeColors)
+
+		-- Compute and send camera positions (pure top-down, no horizontal offset = no tilt)
+		do
+			local gridCenter = Vector3.new(joinScreen.Position.X, joinScreen.Position.Y + 1.2, joinScreen.Position.Z)
+			local upHint = Vector3.new(-1, 0, 0) -- rotated 90° so table appears correctly centred
+			local farCF   = CFrame.lookAt(gridCenter + Vector3.new(0, 18, 0), gridCenter, upHint)
+			local closeCF = CFrame.lookAt(gridCenter + Vector3.new(0,  8, 0), gridCenter, upHint)
+			cameraFocusEvent:FireClient(player, farCF, closeCF)
+		end
 
 		local SoloGameManager = require(game.ServerScriptService:WaitForChild("SoloGameManager"))
 
@@ -376,7 +431,7 @@ function SoloJoinScreenManager:SetupPlatform(platformModel)
 			print("[SoloJoin] " .. platformModel.Name .. " reset")
 		end
 
-		SoloGameManager:StartGame(player, platformObj, gridSize)
+		SoloGameManager:StartGame(player, platformObj, gridSize, themeColors)
 	end)
 
 	game.Players.PlayerRemoving:Connect(function(player)
